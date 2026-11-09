@@ -3,7 +3,7 @@ import { test, expect, openPdf, pagePoint, elements, saveAndDownload, pdfTexts, 
 const A4 = 595.28
 
 async function addTextByClick(page: import('@playwright/test').Page, n: number, x: number, y: number, text: string) {
-  await page.getByRole('radio', { name: 'Testo' }).click()
+  await page.getByRole('radio', { name: 'Testo', exact: true }).click()
   const p = await pagePoint(page, n, x, y, A4)
   await page.mouse.click(p.x, p.y)
   await page.keyboard.type(text)
@@ -58,7 +58,7 @@ test.describe('F01 aggiungere testo e scaricare', () => {
 
   test('F01-E4 un testo svuotato sparisce', async ({ page }) => {
     await openPdf(page, 'documento.pdf')
-    await page.getByRole('radio', { name: 'Testo' }).click()
+    await page.getByRole('radio', { name: 'Testo', exact: true }).click()
     const p = await pagePoint(page, 1, 300, 330, A4)
     await page.mouse.click(p.x, p.y)
     await page.keyboard.press('Backspace') // il testo iniziale è tutto selezionato
@@ -68,7 +68,7 @@ test.describe('F01 aggiungere testo e scaricare', () => {
 
   test('F01-E5 solo tastiera: inserisci, scrivi, salva', async ({ page }, info) => {
     await openPdf(page, 'documento.pdf')
-    await page.getByRole('radio', { name: 'Testo' }).focus()
+    await page.getByRole('radio', { name: 'Testo', exact: true }).focus()
     await page.keyboard.press('Enter')
     await page.keyboard.type('Scritto senza mouse')
     await page.keyboard.press('Escape')

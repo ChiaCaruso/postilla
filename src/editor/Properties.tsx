@@ -1,20 +1,20 @@
 // Barra delle proprietà: mostra le proprietà dell'elemento selezionato,
 // oppure quelle che avranno i nuovi elementi dello strumento attivo.
 import * as TG from '@radix-ui/react-toggle-group'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Circle, Italic, Minus, Square, Trash2 } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Circle, Highlighter, Italic, Minus, Square, Strikethrough, Trash2, Underline } from 'lucide-react'
 import { PropertyBar, PropertyGroup } from '../ui/PropertyBar'
 import { Select } from '../ui/Select'
-import { ColorPicker } from '../ui/ColorPicker'
+import { ColorPicker, HIGHLIGHT_SWATCHES } from '../ui/ColorPicker'
 import { Slider } from '../ui/Slider'
 import { IconButton, iconButtonClass } from '../ui/IconButton'
 import { Tooltip } from '../ui/Tooltip'
 import { FONT_FAMILIES, loadFontFace } from '../pdf/fonts'
-import { selectedElement, useStore, type ShapeKind, type Style } from '../store'
+import { selectedElement, useStore, type AnnotationStyle, type ShapeKind, type Style } from '../store'
 import type { Element, FontFamily } from '../model'
 
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64, 72]
 
-function TextControls({ v, onChange }: { v: Pick<Style, 'font' | 'size' | 'color' | 'bold' | 'italic' | 'align'>; onChange: (p: Partial<Style>) => void }) {
+function TextControls({ v, onChange }: { v: Pick<Style, 'font' | 'size' | 'color' | 'bold' | 'italic' | 'underline' | 'align'>; onChange: (p: Partial<Style>) => void }) {
   const sizes = SIZES.includes(v.size) ? SIZES : [...SIZES, v.size].sort((a, b) => a - b)
   const withFont = async (p: Partial<Style>) => {
     const next = { ...v, ...p }
@@ -31,6 +31,7 @@ function TextControls({ v, onChange }: { v: Pick<Style, 'font' | 'size' | 'color
       <PropertyGroup>
         <IconButton size="sm" label="Grassetto" icon={<Bold />} pressed={v.bold} onClick={() => void withFont({ bold: !v.bold })} />
         <IconButton size="sm" label="Corsivo" icon={<Italic />} pressed={v.italic} disabled={v.font === 'NotoSansMono'} onClick={() => void withFont({ italic: !v.italic })} />
+        <IconButton size="sm" label="Sottolineato" icon={<Underline />} pressed={v.underline} onClick={() => onChange({ underline: !v.underline })} />
       </PropertyGroup>
       <PropertyGroup>
         <IconButton size="sm" label="Allinea a sinistra" icon={<AlignLeft />} pressed={v.align === 'left'} onClick={() => onChange({ align: 'left' })} />
@@ -65,6 +66,12 @@ function ShapeControls({ shape, fill, stroke, strokeWidth, onChange }: {
   )
 }
 
+const ANNOTATIONS: Array<{ value: AnnotationStyle; label: string; icon: React.ReactNode }> = [
+  { value: 'highlight', label: 'Evidenzia', icon: <Highlighter /> },
+  { value: 'underline', label: 'Sottolinea', icon: <Underline /> },
+  { value: 'strike', label: 'Barra', icon: <Strikethrough /> },
+]
+
 function OpacityControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <PropertyGroup>
@@ -94,10 +101,26 @@ export function Properties() {
         {el.type === 'shape' && (
           <ShapeControls shape={el.shape} fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth} onChange={(p) => edit(p)} />
         )}
-        {el.type === 'drawing' && (
+        {el.type === 'drawing' && !el.highlighter && (
           <PropertyGroup>
             <ColorPicker label="Colore" value={el.color} onChange={(c) => c && edit({ color: c }, { drawColor: c })} />
             <Slider label="Spessore" value={el.strokeWidth} onChange={(n) => edit({ strokeWidth: n }, { drawWidth: n })} min={1} max={20} unit=" pt" />
+          </PropertyGroup>
+        )}
+        {el.type === 'drawing' && el.highlighter && (
+          <PropertyGroup>
+            <ColorPicker label="Colore dell'evidenziatore" value={el.color} swatches={HIGHLIGHT_SWATCHES} onChange={(c) => c && edit({ color: c }, { markerColor: c })} />
+            <Slider label="Spessore" value={el.strokeWidth} onChange={(n) => edit({ strokeWidth: n }, { markerWidth: n })} min={4} max={40} unit=" pt" />
+          </PropertyGroup>
+        )}
+        {el.type === 'annotation' && (
+          <PropertyGroup>
+            <ColorPicker
+              label="Colore"
+              value={el.color}
+              swatches={el.style === 'highlight' ? HIGHLIGHT_SWATCHES : undefined}
+              onChange={(c) => c && edit({ color: c }, el.style === 'highlight' ? { highlightColor: c } : { lineColor: c })}
+            />
           </PropertyGroup>
         )}
         <OpacityControl value={el.opacity} onChange={(o) => edit({ opacity: o }, {})} />
@@ -130,6 +153,47 @@ export function Properties() {
         </PropertyGroup>
         <ShapeControls shape={style.shape} fill={style.fill} stroke={style.stroke} strokeWidth={style.strokeWidth} onChange={setStyle} />
         <Hint>Clicca sulla pagina per inserire la forma.</Hint>
+      </PropertyBar>
+    )
+  }
+  if (tool === 'marker') {
+    return (
+      <PropertyBar>
+        <PropertyGroup>
+          <ColorPicker label="Colore dell'evidenziatore" value={style.markerColor} swatches={HIGHLIGHT_SWATCHES} onChange={(c) => c && setStyle({ markerColor: c })} />
+          <Slider label="Spessore" value={style.markerWidth} onChange={(n) => setStyle({ markerWidth: n })} min={4} max={40} unit=" pt" />
+        </PropertyGroup>
+        <Hint>Passa sopra il testo come con un evidenziatore: il testo resta leggibile.</Hint>
+      </PropertyBar>
+    )
+  }
+  if (tool === 'annotate') {
+    const highlight = style.annotStyle === 'highlight'
+    return (
+      <PropertyBar>
+        <PropertyGroup>
+          <TG.Root type="single" value={style.annotStyle} onValueChange={(v) => v && setStyle({ annotStyle: v as AnnotationStyle })} aria-label="Tipo di annotazione" className="flex gap-1">
+            {ANNOTATIONS.map((a) => (
+              <Tooltip key={a.value} label={a.label}>
+                <TG.Item value={a.value} aria-label={a.label} className={iconButtonClass('sm')}>{a.icon}</TG.Item>
+              </Tooltip>
+            ))}
+          </TG.Root>
+          <ColorPicker
+            label="Colore"
+            value={highlight ? style.highlightColor : style.lineColor}
+            swatches={highlight ? HIGHLIGHT_SWATCHES : undefined}
+            onChange={(c) => c && setStyle(highlight ? { highlightColor: c } : { lineColor: c })}
+          />
+        </PropertyGroup>
+        <Hint>Trascina sopra il testo, oppure clicca su una parola.</Hint>
+      </PropertyBar>
+    )
+  }
+  if (tool === 'hand') {
+    return (
+      <PropertyBar>
+        <Hint>Trascina il documento per spostarti tra le pagine.</Hint>
       </PropertyBar>
     )
   }

@@ -1,7 +1,8 @@
 // Ponte tra il modello (store) e gli oggetti Fabric che l'utente sposta sulla pagina.
 // Fabric lavora in punti PDF: lo zoom è solo lo zoom del canvas Fabric.
 import { Ellipse, FabricImage, FabricObject, Path, Rect, Textbox } from 'fabric'
-import type { DrawingElement, Element, ImageElement, ShapeElement, TextElement } from '../model'
+import type { AnnotationElement, DrawingElement, Element, ImageElement, ShapeElement, TextElement } from '../model'
+import { annotationBars } from '../pdf/textRuns'
 import { cssFamily } from '../pdf/fonts'
 import { TEXT_METRICS } from '../pdf/metrics'
 import tokens from '../../docs/design/tokens.json'
@@ -38,6 +39,7 @@ function textProps(el: TextElement) {
     // Il mono non ha il corsivo: niente corsivo finto nell'editor, l'export non lo avrebbe.
     fontStyle: el.italic && el.font !== 'NotoSansMono' ? ('italic' as const) : ('normal' as const),
     fill: el.color,
+    underline: el.underline,
     textAlign: el.align,
     lineHeight: TEXT_METRICS.lineHeight,
     scaleX: 1,
@@ -71,7 +73,46 @@ const drawingProps = (el: DrawingElement) => ({
   fill: '',
   strokeLineCap: 'round' as const,
   strokeLineJoin: 'round' as const,
+  // Evidenziatore: colore in moltiplicazione, come nel PDF (il testo sotto resta nero).
+  globalCompositeOperation: (el.highlighter ? 'multiply' : 'source-over') as GlobalCompositeOperation,
 })
+
+/** Tracciato delle barre di un'annotazione, relativo al proprio riquadro, e spostamento di quel riquadro. */
+function annotationGeometry(el: AnnotationElement) {
+  const bars = el.rects.map((r) => annotationBars(el.style, r))
+  const minX = Math.min(...bars.map((b) => b.x))
+  const minY = Math.min(...bars.map((b) => b.y))
+  const d = bars.map((b) => `M ${b.x - minX} ${b.y - minY} h ${b.w} v ${b.h} h ${-b.w} Z`).join(' ')
+  return { d, dx: minX, dy: minY }
+}
+
+const annotationSig = (el: AnnotationElement) => `${el.style}|${JSON.stringify(el.rects)}`
+const sigs = new WeakMap<FabricObject, string>()
+
+/** Le annotazioni non si spostano né si ridimensionano: seguono il testo. Se cambia la geometria, si ricrea l'oggetto. */
+export function needsRecreate(el: Element, o: FabricObject) {
+  return el.type === 'annotation' && sigs.get(o) !== annotationSig(el)
+}
+
+function annotationProps(el: AnnotationElement) {
+  const { dx, dy } = annotationGeometry(el)
+  return {
+    left: el.x + dx,
+    top: el.y + dy,
+    originX: 'left' as const,
+    originY: 'top' as const,
+    angle: 0,
+    opacity: el.opacity,
+    fill: el.color,
+    stroke: null,
+    strokeWidth: 0,
+    globalCompositeOperation: (el.style === 'highlight' ? 'multiply' : 'source-over') as GlobalCompositeOperation,
+    lockMovementX: true,
+    lockMovementY: true,
+    hasControls: false,
+    hoverCursor: 'pointer',
+  }
+}
 
 export async function createObject(el: Element): Promise<FabricObject> {
   let o: FabricObject
@@ -94,6 +135,13 @@ export async function createObject(el: Element): Promise<FabricObject> {
       // Il tracciato parte da (0, 0): riportiamo l'oggetto nella posizione salvata.
       o.set({ left: el.x, top: el.y })
       break
+    case 'annotation': {
+      const props = annotationProps(el)
+      o = new Path(annotationGeometry(el).d, props)
+      o.set({ left: props.left, top: props.top })
+      sigs.set(o, annotationSig(el))
+      break
+    }
   }
   ids.set(o, el.id)
   o.setCoords()
@@ -124,6 +172,9 @@ export function applyToObject(el: Element, o: FabricObject) {
     case 'drawing':
       o.set(drawingProps(el))
       break
+    case 'annotation':
+      o.set(annotationProps(el))
+      break
   }
   o.setCoords()
 }
@@ -148,6 +199,8 @@ export function readFromObject(o: FabricObject, el: Element): Partial<Element> {
       return { ...base, scaleX: o.scaleX, scaleY: o.scaleY }
     case 'drawing':
       return { ...base, scaleX: o.scaleX, scaleY: o.scaleY }
+    case 'annotation':
+      return {}
     case 'shape': {
       if (el.shape === 'ellipse') {
         const e = o as Ellipse
@@ -173,7 +226,7 @@ const normalizeAngle = (a: number) => ((a % 360) + 360) % 360
  * Converte un tracciato appena disegnato con la penna in un elemento:
  * tracciato relativo al proprio riquadro e posizione del riquadro (bordo compreso).
  */
-export function drawingFromPath(p: Path, page: number, color: string, strokeWidth: number): Omit<DrawingElement, 'id' | 'z'> {
+export function drawingFromPath(p: Path, page: number, color: string, strokeWidth: number, highlighter = false): Omit<DrawingElement, 'id' | 'z'> {
   const left = p.pathOffset.x - p.width / 2
   const top = p.pathOffset.y - p.height / 2
   const d = p.path
@@ -197,5 +250,6 @@ export function drawingFromPath(p: Path, page: number, color: string, strokeWidt
     scaleY: 1,
     color,
     strokeWidth,
+    highlighter,
   }
 }

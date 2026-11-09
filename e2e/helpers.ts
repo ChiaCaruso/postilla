@@ -140,13 +140,22 @@ export async function pdfInfo(file: string) {
   const doc = await PDFDocument.load(readFileSync(file))
   const fonts = new Set<string>()
   let images = 0
+  const blendModes = new Set<string>()
   for (const [, o] of doc.context.enumerateIndirectObjects()) {
     const dict = o instanceof PDFDict ? o : (o as { dict?: PDFDict }).dict
     if (!dict) continue
     if (dict.get(PDFName.of('Type'))?.toString() === '/Font') fonts.add(String(dict.get(PDFName.of('BaseFont'))))
     if (dict.get(PDFName.of('Subtype'))?.toString() === '/Image') images++
+    // la modalità di fusione può stare in un dizionario annidato (es. Resources → ExtGState → GS1)
+    const walk = (d: PDFDict, depth: number) => {
+      const bm = d.get(PDFName.of('BM'))
+      if (bm) blendModes.add(String(bm))
+      if (depth > 4) return
+      for (const [, v] of d.entries()) if (v instanceof PDFDict) walk(v, depth + 1)
+    }
+    walk(dict, 0)
   }
-  return { encrypted: doc.isEncrypted, pages: doc.getPageCount(), fonts: [...fonts], images }
+  return { encrypted: doc.isEncrypted, pages: doc.getPageCount(), fonts: [...fonts], images, blendModes: [...blendModes] }
 }
 
 /** Scansione di accessibilità: restituisce le violazioni in forma leggibile. */
@@ -196,3 +205,34 @@ export async function pixelMatch(page: Page, a: Buffer, b: Buffer): Promise<numb
 
 /** Costanti di impaginazione (copiate da src/pdf/metrics.ts per non importare codice dell'app nei test). */
 export const firstBaseline = (size: number) => size * 1.13 * (1 - 0.222)
+
+/** Annotazioni del PDF lette con pdf.js: tipo, testo e aree (QuadPoints) in coordinate "come si vede". */
+export async function pdfAnnotations(file: string) {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const pdf = await getDocument({ data: new Uint8Array(readFileSync(file)), verbosity: 0 }).promise
+  const out: Array<{ page: number; subtype: string; contents: string; boxes: Array<{ x: number; y: number; w: number; h: number }> }> = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const vp = page.getViewport({ scale: 1 })
+    for (const a of await page.getAnnotations()) {
+      const q: number[] = a.quadPoints ? Array.from(a.quadPoints as ArrayLike<number>) : []
+      const boxes = []
+      for (let k = 0; k + 8 <= q.length; k += 8) {
+        const pts = [0, 2, 4, 6].map((j) => vp.convertToViewportPoint(q[k + j], q[k + j + 1]))
+        const xs = pts.map((p) => p[0])
+        const ys = pts.map((p) => p[1])
+        boxes.push({ x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) })
+      }
+      out.push({ page: i, subtype: a.subtype, contents: a.contentsObj?.str ?? a.contents ?? '', boxes })
+    }
+  }
+  return out
+}
+
+/** Screenshot della pagina n: dell'editor, oppure (dopo averlo riaperto) del PDF esportato. */
+export async function pageShot(page: Page, n: number) {
+  const fig = page.getByRole('figure', { name: `Pagina ${n}`, exact: true })
+  await fig.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(500)
+  return fig.locator('> div').screenshot()
+}

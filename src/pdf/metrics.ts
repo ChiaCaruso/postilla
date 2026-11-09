@@ -7,6 +7,9 @@ export const TEXT_METRICS = {
   lineHeight: 1.16,
   /** Quota della riga sotto la linea di base. */
   baselineFraction: 0.222,
+  /** Sottolineato: distanza sotto la linea di base e spessore, in frazioni della dimensione del font. */
+  underlineOffset: 0.1,
+  decorationThickness: 66.667 / 1000,
 }
 
 /**

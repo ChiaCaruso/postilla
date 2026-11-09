@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Brush, Download, ImagePlus, Layers, MousePointer2, Shapes, Square, Circle, Minus, Type, PenLine, X } from 'lucide-react'
+import { Brush, Download, Hand, Highlighter, ImagePlus, Layers, MousePointer2, Redo2, Shapes, Square, Circle, Minus, Strikethrough, Type, PenLine, TextSelect, Underline, Undo2, X } from 'lucide-react'
 import { Toolbar, ToolbarSeparator, ToolPicker, type Tool } from '../ui/ToolPicker'
 import { IconButton } from '../ui/IconButton'
 import { Button } from '../ui/Button'
@@ -16,13 +16,26 @@ import { useStore, type ToolId } from '../store'
 import type { Element, FontFamily } from '../model'
 import { cn } from '../ui/cn'
 
-const TOOLS: Tool<ToolId>[] = [
-  { value: 'select', label: 'Seleziona e sposta', icon: <MousePointer2 />, shortcut: 'V' },
-  { value: 'text', label: 'Testo', icon: <Type />, shortcut: 'T' },
-  { value: 'shape', label: 'Forma', icon: <Shapes />, shortcut: 'R' },
-  { value: 'draw', label: 'Penna', icon: <Brush />, shortcut: 'P' },
-]
-const SHORTCUTS: Record<string, ToolId> = { v: 'select', t: 'text', r: 'shape', p: 'draw' }
+const NO_TEXT = 'Questo PDF non contiene testo selezionabile (forse è una scansione)'
+
+function toolsFor(haTesto: boolean): Tool<ToolId>[] {
+  return [
+    { value: 'select', label: 'Seleziona e sposta', icon: <MousePointer2 />, shortcut: 'V' },
+    { value: 'hand', label: 'Mano: trascina per scorrere', icon: <Hand />, shortcut: 'H' },
+    { value: 'text', label: 'Testo', icon: <Type />, shortcut: 'T' },
+    { value: 'shape', label: 'Forma', icon: <Shapes />, shortcut: 'R' },
+    { value: 'draw', label: 'Penna', icon: <Brush />, shortcut: 'P' },
+    { value: 'marker', label: 'Evidenziatore a mano libera', icon: <Highlighter />, shortcut: 'E' },
+    {
+      value: 'annotate',
+      label: 'Evidenzia, sottolinea o barra il testo',
+      icon: <TextSelect />,
+      shortcut: 'A',
+      disabledReason: haTesto ? undefined : NO_TEXT,
+    },
+  ]
+}
+const SHORTCUTS: Record<string, ToolId> = { v: 'select', h: 'hand', t: 'text', r: 'shape', p: 'draw', e: 'marker', a: 'annotate' }
 
 function describe(el: Element): { title: string; icon: React.ReactNode } {
   switch (el.type) {
@@ -31,13 +44,17 @@ function describe(el: Element): { title: string; icon: React.ReactNode } {
     case 'image':
       return { title: 'Immagine', icon: <ImagePlus /> }
     case 'drawing':
-      return { title: 'Disegno a mano', icon: <PenLine /> }
+      return el.highlighter ? { title: 'Tratto di evidenziatore', icon: <Highlighter /> } : { title: 'Disegno a mano', icon: <PenLine /> }
     case 'shape':
       return el.shape === 'rect'
         ? { title: 'Rettangolo', icon: <Square /> }
         : el.shape === 'ellipse'
           ? { title: 'Ellisse', icon: <Circle /> }
           : { title: 'Linea', icon: <Minus /> }
+    case 'annotation': {
+      const what = el.style === 'highlight' ? 'Evidenziato' : el.style === 'underline' ? 'Sottolineato' : 'Barrato'
+      return { title: `${what}: ${el.text}`, icon: el.style === 'highlight' ? <TextSelect /> : el.style === 'underline' ? <Underline /> : <Strikethrough /> }
+    }
   }
 }
 
@@ -54,6 +71,9 @@ export function EditorScreen() {
   const [confirmClose, setConfirmClose] = useState(false)
   const [mobileHintClosed, setMobileHintClosed] = useState(false)
   const [missing, setMissing] = useState<string[]>([])
+  const tools = toolsFor(doc.haTesto)
+  const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const [panning, setPanning] = useState(false)
   const scale = (s.zoom / 100) * PX_PER_PT
 
   const fitWidth = () => {
@@ -179,12 +199,24 @@ export function EditorScreen() {
       } else if (mod && e.key === '-') {
         e.preventDefault()
         st.setZoom([...ZOOM_STEPS].reverse().find((z) => z < st.zoom) ?? st.zoom)
+      } else if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) st.redo()
+        else st.undo()
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        st.redo()
+      } else if (mod && e.key.toLowerCase() === 'c' && sel) {
+        if (st.copy(sel.id)) e.preventDefault()
+      } else if (mod && e.key.toLowerCase() === 'v' && st.clipboard) {
+        e.preventDefault()
+        st.paste()
       } else if (mod) {
         return
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
         e.preventDefault()
         st.removeElement(sel.id)
-      } else if (e.key.startsWith('Arrow') && sel) {
+      } else if (e.key.startsWith('Arrow') && sel && sel.type !== 'annotation') {
         e.preventDefault()
         const d = e.shiftKey ? 10 : 1
         const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0
@@ -194,7 +226,8 @@ export function EditorScreen() {
         st.select(null)
         st.setTool('select')
       } else if (!e.altKey && SHORTCUTS[e.key.toLowerCase()]) {
-        st.setTool(SHORTCUTS[e.key.toLowerCase()])
+        const t = SHORTCUTS[e.key.toLowerCase()]
+        if (t !== 'annotate' || st.doc?.haTesto) st.setTool(t)
       } else if (!e.altKey && e.key.toLowerCase() === 'i') {
         imageInput.current?.click()
       }
@@ -247,12 +280,15 @@ export function EditorScreen() {
         <Toolbar label="Strumenti">
           <ToolPicker
             label="Strumento attivo"
-            tools={TOOLS}
+            tools={tools}
             value={s.tool}
             onChange={s.setTool}
             onActivate={(v, viaKeyboard) => viaKeyboard && (v === 'text' || v === 'shape') && insertAtCenter(v)}
           />
           <IconButton label="Inserisci immagine" shortcut="I" icon={<ImagePlus />} onClick={() => imageInput.current?.click()} />
+          <ToolbarSeparator />
+          <IconButton label="Annulla" shortcut="Ctrl Z" icon={<Undo2 />} disabled={s.past.length === 0} onClick={s.undo} />
+          <IconButton label="Ripeti" shortcut="Ctrl Maiusc Z" icon={<Redo2 />} disabled={s.future.length === 0} onClick={s.redo} />
           <input
             ref={imageInput}
             type="file"
@@ -303,10 +339,32 @@ export function EditorScreen() {
           ref={scroller}
           aria-label="Pagine del documento"
           tabIndex={0}
-          className="grow overflow-auto bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className={cn(
+            'grow overflow-auto bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
+            s.tool === 'hand' && (panning ? 'cursor-grabbing select-none' : 'cursor-grab'),
+          )}
           onPointerDown={(e) => {
+            const el = scroller.current
+            if (s.tool === 'hand' && el) {
+              // Mano: si trascina il documento.
+              pan.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop }
+              el.setPointerCapture(e.pointerId)
+              setPanning(true)
+              e.preventDefault()
+              return
+            }
             // Clic sullo sfondo grigio: deseleziona.
             if (e.target === e.currentTarget) s.select(null)
+          }}
+          onPointerMove={(e) => {
+            const el = scroller.current
+            if (!pan.current || !el) return
+            el.scrollLeft = pan.current.left - (e.clientX - pan.current.x)
+            el.scrollTop = pan.current.top - (e.clientY - pan.current.y)
+          }}
+          onPointerUp={() => {
+            pan.current = null
+            setPanning(false)
           }}
         >
           <div className="mx-auto flex w-max flex-col items-center gap-(--layout-page-gap) p-6">

@@ -54,6 +54,7 @@ export interface TextElement extends Base {
   color: string
   bold: boolean
   italic: boolean
+  underline: boolean
   align: 'left' | 'center' | 'right'
 }
 
@@ -89,9 +90,33 @@ export interface DrawingElement extends Base {
   scaleY: number
   color: string
   strokeWidth: number
+  /** Evidenziatore a mano libera: colore in moltiplicazione, il testo sotto resta leggibile. */
+  highlighter: boolean
 }
 
-export type Element = TextElement | ImageElement | ShapeElement | DrawingElement
+export interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/**
+ * Evidenziazione, sottolineatura o barratura di testo già presente nel PDF.
+ * Nel PDF diventa una vera annotazione (modificabile in Acrobat e simili).
+ * x, y = angolo del riquadro che contiene tutte le aree; le aree sono relative a x, y.
+ */
+export interface AnnotationElement extends Base {
+  type: 'annotation'
+  style: 'highlight' | 'underline' | 'strike'
+  color: string
+  /** Un'area per ogni pezzo di riga coperto. */
+  rects: Box[]
+  /** Testo coperto, per il pannello Elementi. */
+  text: string
+}
+
+export type Element = TextElement | ImageElement | ShapeElement | DrawingElement | AnnotationElement
 export type ElementType = Element['type']
 
 export type ErroreApertura = 'non_pdf' | 'troppo_grande' | 'serve_password' | 'password_errata' | 'danneggiato'

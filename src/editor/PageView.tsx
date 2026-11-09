@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Canvas, PencilBrush, cache, type FabricObject, type Path, type Textbox } from 'fabric'
+import { Canvas, FabricImage, PencilBrush, Rect, cache, type FabricObject, type Path, type Textbox } from 'fabric'
 import type { RenderTask } from 'pdfjs-dist'
 import { useStore } from '../store'
 import type { Element, Pagina } from '../model'
-import { applyToObject, createObject, drawingFromPath, idOf, readFromObject } from './fabricBridge'
+import { applyToObject, createObject, drawingFromPath, idOf, needsRecreate, readFromObject } from './fabricBridge'
 import { newShape, newText } from './factory'
 import { cssFamily, isFontLoaded, loadFontFace } from '../pdf/fonts'
+import { boundRects, getTextRuns, selectRuns } from '../pdf/textRuns'
+import tokens from '../../docs/design/tokens.json'
 
 export const PX_PER_PT = 96 / 72
 
@@ -26,6 +28,8 @@ export function PageView({ page, scale }: Props) {
   const [ready, setReady] = useState(false)
   /** Cresce quando un oggetto creato in modo asincrono (es. immagine) arriva sul canvas. */
   const [objVersion, setObjVersion] = useState(0)
+  /** Ultimo disegno completo della pagina: fa anche da sfondo al canvas di Fabric. */
+  const [pageBitmap, setPageBitmap] = useState<HTMLCanvasElement | null>(null)
 
   const pdfjs = useStore((s) => s.pdfjs)
   const elements = useStore((s) => s.elements)
@@ -56,11 +60,21 @@ export function PageView({ page, scale }: Props) {
       if (cancelled || !pdfCanvas.current) return
       const dpr = window.devicePixelRatio || 1
       const vp = p.getViewport({ scale: scale * dpr })
-      const c = pdfCanvas.current
-      c.width = Math.floor(vp.width)
-      c.height = Math.floor(vp.height)
-      task = p.render({ canvas: c, viewport: vp })
-      task.promise.catch(() => {})
+      // Si disegna fuori schermo e si sostituisce solo a disegno finito: niente pagine bianche durante lo zoom.
+      const off = document.createElement('canvas')
+      off.width = Math.floor(vp.width)
+      off.height = Math.floor(vp.height)
+      task = p.render({ canvas: off, viewport: vp })
+      task.promise
+        .then(() => {
+          if (cancelled || !pdfCanvas.current) return
+          const c = pdfCanvas.current
+          c.width = off.width
+          c.height = off.height
+          c.getContext('2d')!.drawImage(off, 0, 0)
+          setPageBitmap(off)
+        })
+        .catch(() => {})
     }, 60)
     return () => {
       cancelled = true
@@ -78,9 +92,22 @@ export function PageView({ page, scale }: Props) {
     fc.current = canvas
     const objs = objects.current
 
+    // Annotare il testo: si trascina sopra le righe (o si clicca su una parola).
+    let dragStart: { x: number; y: number } | null = null
+    let dragRect: Rect | null = null
     canvas.on('mouse:down', (opt) => {
       const s = useStore.getState()
       const tool = s.tool
+      if (tool === 'annotate') {
+        dragStart = { x: opt.scenePoint.x, y: opt.scenePoint.y }
+        dragRect = new Rect({
+          left: dragStart.x, top: dragStart.y, width: 0, height: 0, originX: 'left', originY: 'top',
+          fill: 'transparent', stroke: tokens.color.selection, strokeWidth: 1, strokeDashArray: [4, 3],
+          strokeUniform: true, selectable: false, evented: false,
+        })
+        canvas.add(dragRect)
+        return
+      }
       if (opt.target || (tool !== 'text' && tool !== 'shape')) return
       const p = opt.scenePoint
       const id = s.addElement(tool === 'text' ? newText(page.indice, p.x, p.y, s.style) : newShape(page.indice, p.x, p.y, s.style))
@@ -88,11 +115,39 @@ export function PageView({ page, scale }: Props) {
       s.select(id)
       if (tool === 'text') s.requestEdit(id)
     })
+    canvas.on('mouse:move', (opt) => {
+      if (!dragStart || !dragRect) return
+      const p = opt.scenePoint
+      dragRect.set({ left: Math.min(dragStart.x, p.x), top: Math.min(dragStart.y, p.y), width: Math.abs(p.x - dragStart.x), height: Math.abs(p.y - dragStart.y) })
+      canvas.requestRenderAll()
+    })
+    canvas.on('mouse:up', (opt) => {
+      if (!dragStart || !dragRect) return
+      const p = opt.scenePoint
+      const drag = { x: Math.min(dragStart.x, p.x), y: Math.min(dragStart.y, p.y), w: Math.abs(p.x - dragStart.x), h: Math.abs(p.y - dragStart.y) }
+      canvas.remove(dragRect)
+      dragStart = null
+      dragRect = null
+      const s = useStore.getState()
+      if (!s.pdfjs) return
+      void getTextRuns(s.pdfjs, page.indice).then((runs) => {
+        const sel = selectRuns(runs, drag)
+        if (!sel.rects.length) return
+        const st = useStore.getState()
+        const { x, y, rel } = boundRects(sel.rects)
+        const style = st.style.annotStyle
+        st.addElement({
+          type: 'annotation', page: page.indice, x, y, rotation: 0, opacity: 1,
+          style, color: style === 'highlight' ? st.style.highlightColor : st.style.lineColor, rects: rel, text: sel.text,
+        })
+      })
+    })
     canvas.on('object:modified', ({ target }) => {
       const id = idOf(target)
       const s = useStore.getState()
       const el = s.elements.find((e) => e.id === id)
-      if (id && el) s.updateElement(id, readFromObject(target, el))
+      // Ogni spostamento o ridimensionamento con il mouse è un passo di Annulla.
+      if (id && el) s.updateElement(id, readFromObject(target, el), 'push')
     })
     canvas.on('text:changed', ({ target }) => {
       const id = idOf(target)
@@ -125,7 +180,12 @@ export function PageView({ page, scale }: Props) {
       canvas.remove(path)
       const p = path as Path
       if (!p.path?.length) return
-      s.addElement(drawingFromPath(p, page.indice, s.style.drawColor, s.style.drawWidth))
+      const marker = s.tool === 'marker'
+      s.addElement(
+        marker
+          ? drawingFromPath(p, page.indice, s.style.markerColor, s.style.markerWidth, true)
+          : drawingFromPath(p, page.indice, s.style.drawColor, s.style.drawWidth),
+      )
     })
 
     setReady(true)
@@ -137,6 +197,24 @@ export function PageView({ page, scale }: Props) {
       el.remove()
     }
   }, [visible, page.indice])
+
+  // La pagina come sfondo di Fabric: così evidenziatore ed evidenziazioni "in moltiplicazione"
+  // si fondono con il testo come nel PDF, invece di coprirlo.
+  useEffect(() => {
+    const c = fc.current
+    if (!ready || !c || !pageBitmap) return
+    c.backgroundImage = new FabricImage(pageBitmap, {
+      left: 0,
+      top: 0,
+      originX: 'left',
+      originY: 'top',
+      scaleX: page.larghezza / pageBitmap.width,
+      scaleY: page.altezza / pageBitmap.height,
+      selectable: false,
+      evented: false,
+    })
+    c.requestRenderAll()
+  }, [ready, pageBitmap, page.larghezza, page.altezza])
 
   // Zoom.
   useEffect(() => {
@@ -151,18 +229,25 @@ export function PageView({ page, scale }: Props) {
   useEffect(() => {
     const c = fc.current
     if (!ready || !c) return
-    c.isDrawingMode = tool === 'draw'
-    if (tool === 'draw') {
+    c.isDrawingMode = tool === 'draw' || tool === 'marker'
+    if (c.isDrawingMode) {
       const brush = new PencilBrush(c)
-      brush.color = style.drawColor
-      brush.width = style.drawWidth
+      // L'evidenziatore si vede semitrasparente mentre si disegna; diventa "in moltiplicazione" appena finito.
+      brush.color = tool === 'marker' ? `${style.markerColor}99` : style.drawColor
+      brush.width = tool === 'marker' ? style.markerWidth : style.drawWidth
       brush.strokeLineCap = 'round'
       brush.strokeLineJoin = 'round'
       c.freeDrawingBrush = brush
     }
-    c.defaultCursor = tool === 'text' ? 'text' : tool === 'shape' ? 'crosshair' : 'default'
-    c.forEachObject((o) => o.set({ hoverCursor: tool === 'select' ? 'move' : 'pointer' }))
-  }, [ready, tool, style.drawColor, style.drawWidth])
+    // Annotando, i clic passano "attraverso" gli elementi già presenti.
+    c.skipTargetFind = tool === 'annotate'
+    c.defaultCursor = tool === 'text' || tool === 'annotate' ? 'text' : tool === 'shape' ? 'crosshair' : 'default'
+    c.forEachObject((o) => {
+      const id = idOf(o)
+      const isAnnotation = useStore.getState().elements.find((e) => e.id === id)?.type === 'annotation'
+      o.set({ hoverCursor: tool === 'select' && !isAnnotation ? 'move' : 'pointer' })
+    })
+  }, [ready, tool, style.drawColor, style.drawWidth, style.markerColor, style.markerWidth])
 
   // Dallo store a Fabric: crea, aggiorna, elimina e ordina gli oggetti di questa pagina.
   useEffect(() => {
@@ -187,6 +272,11 @@ export function PageView({ page, scale }: Props) {
     }
     let changedOrder = false
     for (const el of mine) {
+      const existing = objects.current.get(el.id)
+      if (existing && needsRecreate(el, existing)) {
+        c.remove(existing)
+        objects.current.delete(el.id)
+      }
       const o = objects.current.get(el.id)
       if (o) applyToObject(el, o)
       else if (!pending.current.has(el.id)) {
@@ -240,7 +330,7 @@ export function PageView({ page, scale }: Props) {
     <figure className="flex flex-col items-center gap-2" data-page={page.indice}>
       <div ref={wrapper} className="relative bg-page shadow-page" style={{ width: w, height: h }}>
         <canvas ref={pdfCanvas} aria-hidden className="absolute inset-0 size-full" />
-        <div ref={fabricHost} className="absolute inset-0" />
+        <div ref={fabricHost} className="absolute inset-0" style={{ pointerEvents: tool === 'hand' ? 'none' : undefined }} />
       </div>
       <figcaption className="text-xs text-text-muted">Pagina {page.indice + 1}</figcaption>
     </figure>
@@ -257,7 +347,7 @@ function syncTextLines(id: string, o: FabricObject) {
   if (!el || el.type !== 'text') return
   const lines = (o as Textbox).textLines
   if (lines.length !== el.lines.length || lines.some((l, i) => l !== el.lines[i])) {
-    queueMicrotask(() => useStore.getState().updateElement(id, { lines: lines.slice() }))
+    queueMicrotask(() => useStore.getState().updateElement(id, { lines: lines.slice() }, 'skip'))
   }
 }
 

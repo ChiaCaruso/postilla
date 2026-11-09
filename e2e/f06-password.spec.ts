@@ -14,7 +14,7 @@ test.describe('F06 PDF protetto', () => {
     await page.keyboard.press('Enter')
     await expect(pageFigure(page, 1)).toBeVisible()
 
-    await page.getByRole('radio', { name: 'Testo' }).click()
+    await page.getByRole('radio', { name: 'Testo', exact: true }).click()
     const p = await pagePoint(page, 1, 100, 500, 595.28)
     await page.mouse.click(p.x, p.y)
     await page.keyboard.type('Aggiunto')

@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test'
 const A4 = 595.28
 
 async function addRect(page: Page, x: number, y: number) {
-  await page.getByRole('radio', { name: 'Forma' }).click()
-  await page.getByRole('radio', { name: 'Rettangolo' }).click()
+  await page.getByRole('radio', { name: 'Forma', exact: true }).click()
+  await page.getByRole('radio', { name: 'Rettangolo', exact: true }).click()
   const p = await pagePoint(page, 1, x, y, A4)
   await page.mouse.click(p.x, p.y)
 }

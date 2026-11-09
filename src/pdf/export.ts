@@ -3,6 +3,7 @@
 import {
   PDFDocument,
   PDFDict,
+  PDFHexString,
   PDFName,
   PDFInvalidObject,
   EncryptedPDFError,
@@ -11,13 +12,21 @@ import {
   concatTransformationMatrix,
   rgb,
   LineCapStyle,
+  BlendMode,
+  moveTo,
+  lineTo,
+  closePath,
+  fill,
+  setFillingRgbColor,
+  setGraphicsState,
   type PDFFont,
   type PDFImage,
   type PDFPage,
 } from '@cantoo/pdf-lib'
 import fontkit from '@cantoo/fontkit'
-import type { Documento, DrawingElement, Element, ImageElement, ShapeElement, TextElement } from '../model'
-import { elementToPdf } from './geometry'
+import type { AnnotationElement, Documento, DrawingElement, Element, ImageElement, Matrix, ShapeElement, TextElement } from '../model'
+import { apply, elementToPdf } from './geometry'
+import { annotationBars } from './textRuns'
 import { fontBytes, variantOf } from './fonts'
 import { TEXT_METRICS, scalePath } from './metrics'
 
@@ -96,7 +105,12 @@ export async function exportPdf(doc: Documento, elements: Element[]): Promise<Ex
 
   const isolated = new Set<number>()
   const sorted = [...elements].sort((a, b) => a.page - b.page || a.z - b.z)
+  // Le annotazioni non sono contenuto della pagina: diventano oggetti annotazione del PDF.
   for (const el of sorted) {
+    if (el.type === 'annotation') addAnnotation(pdf, pdf.getPage(el.page), el, doc.pagine[el.page].toPdf)
+  }
+  for (const el of sorted) {
+    if (el.type === 'annotation') continue
     const page = pdf.getPage(el.page)
     if (!isolated.has(el.page)) {
       isolateOriginalContent(pdf, page)
@@ -133,14 +147,13 @@ function drawText(page: PDFPage, el: TextElement, font: PDFFont) {
     const lineWidth = font.widthOfTextAtSize(line, el.size)
     const dx = el.align === 'center' ? (el.width - lineWidth) / 2 : el.align === 'right' ? el.width - lineWidth : 0
     if (line.length === 0) return
-    page.drawText(line, {
-      x: dx,
-      y: -(firstBaseline + i * lineStep),
-      size: el.size,
-      font,
-      color: color(el.color),
-      opacity: el.opacity,
-    })
+    const baseline = firstBaseline + i * lineStep
+    page.drawText(line, { x: dx, y: -baseline, size: el.size, font, color: color(el.color), opacity: el.opacity })
+    if (el.underline) {
+      // stessa barra dell'editor: spessa 1/15 del font, 0,1 del font sotto la linea di base
+      const t = el.size * TEXT_METRICS.decorationThickness
+      page.drawRectangle({ x: dx, y: -(baseline + el.size * TEXT_METRICS.underlineOffset + t), width: lineWidth, height: t, color: color(el.color), opacity: el.opacity })
+    }
   })
 }
 
@@ -174,6 +187,52 @@ function drawDrawing(page: PDFPage, el: DrawingElement) {
     borderWidth: sw,
     borderOpacity: el.opacity,
     borderLineCap: LineCapStyle.Round, // come nell'editor
+    // Evidenziatore: moltiplicazione, il testo sotto resta leggibile
+    blendMode: el.highlighter ? BlendMode.Multiply : undefined,
   })
 }
+
+/**
+ * Evidenziazione, sottolineatura o barratura come annotazione PDF vera (Highlight, Underline, StrikeOut):
+ * si può selezionare, modificare o togliere in Acrobat e simili. Ha anche il suo aspetto disegnato,
+ * così si vede uguale in tutti i lettori.
+ */
+function addAnnotation(pdf: PDFDocument, page: PDFPage, el: AnnotationElement, toPdf: Matrix) {
+  const ctx = pdf.context
+  const abs = el.rects.map((r) => ({ x: el.x + r.x, y: el.y + r.y, w: r.w, h: r.h }))
+  const corners = (r: { x: number; y: number; w: number; h: number }) =>
+    // ordine dei QuadPoints come lo usano i lettori: alto-sinistra, alto-destra, basso-sinistra, basso-destra
+    [apply(toPdf, r.x, r.y), apply(toPdf, r.x + r.w, r.y), apply(toPdf, r.x, r.y + r.h), apply(toPdf, r.x + r.w, r.y + r.h)]
+  const quads = abs.flatMap((r) => corners(r).flat())
+  const xs = quads.filter((_, i) => i % 2 === 0)
+  const ys = quads.filter((_, i) => i % 2 === 1)
+  const rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+
+  const c = color(el.color)
+  const [r, g, b] = [c.red, c.green, c.blue]
+  const ops = [setGraphicsState('GS0'), setFillingRgbColor(r, g, b)]
+  for (const bar of abs.map((a) => annotationBars(el.style, a))) {
+    const [p1, p2, p3, p4] = corners(bar)
+    ops.push(moveTo(...p1), lineTo(...p2), lineTo(...p4), lineTo(...p3), closePath())
+  }
+  ops.push(fill())
+  const gs = ctx.obj({ Type: 'ExtGState', ca: el.opacity, CA: el.opacity, ...(el.style === 'highlight' ? { BM: 'Multiply' } : {}) })
+  const appearance = ctx.register(ctx.formXObject(ops, { BBox: rect, Resources: { ExtGState: { GS0: gs } } }))
+
+  const subtype = el.style === 'highlight' ? 'Highlight' : el.style === 'underline' ? 'Underline' : 'StrikeOut'
+  const annot = ctx.obj({
+    Type: 'Annot',
+    Subtype: subtype,
+    Rect: rect,
+    QuadPoints: quads,
+    C: [r, g, b],
+    CA: el.opacity,
+    F: 4, // stampabile
+    Contents: PDFHexString.fromText(el.text),
+    P: page.ref,
+    AP: { N: appearance },
+  })
+  page.node.addAnnot(ctx.register(annot))
+}
+
 

@@ -11,8 +11,8 @@ test.describe('F03 forme e penna', () => {
       ['Linea', 'line'],
     ] as const
     for (const [i, [label]] of kinds.entries()) {
-      await page.getByRole('radio', { name: 'Forma' }).click()
-      await page.getByRole('radio', { name: label }).click()
+      await page.getByRole('radio', { name: 'Forma', exact: true }).click()
+      await page.getByRole('radio', { name: label, exact: true }).click()
       const p = await pagePoint(page, 1, 80 + i * 170, 400, A4)
       await page.mouse.click(p.x, p.y)
     }
@@ -23,7 +23,7 @@ test.describe('F03 forme e penna', () => {
 
   test('F03-H2 la penna crea un disegno', async ({ page }) => {
     await openPdf(page, 'documento.pdf')
-    await page.getByRole('radio', { name: 'Penna' }).click()
+    await page.getByRole('radio', { name: 'Penna', exact: true }).click()
     const a = await pagePoint(page, 1, 100, 450, A4)
     await page.mouse.move(a.x, a.y)
     await page.mouse.down()
@@ -84,14 +84,14 @@ test.describe('F03 forme e penna', () => {
 
   test('F03-E1 non si possono togliere insieme bordo e riempimento (la forma sparirebbe)', async ({ page }) => {
     await openPdf(page, 'documento.pdf')
-    await page.getByRole('radio', { name: 'Forma' }).click()
-    await page.getByRole('radio', { name: 'Rettangolo' }).click()
+    await page.getByRole('radio', { name: 'Forma', exact: true }).click()
+    await page.getByRole('radio', { name: 'Rettangolo', exact: true }).click()
     const p = await pagePoint(page, 1, 300, 300, A4)
     await page.mouse.click(p.x, p.y)
     const [el] = await elements(page)
     expect(el.fill).toBeNull() // per default la forma ha solo il bordo
     await page.getByRole('button', { name: /^Bordo:/ }).click()
     await expect(page.getByRole('radiogroup', { name: 'Bordo' })).toBeVisible()
-    await expect(page.getByRole('radio', { name: 'Nessuno' })).toHaveCount(0)
+    await expect(page.getByRole('radio', { name: 'Nessuno', exact: true })).toHaveCount(0)
   })
 })

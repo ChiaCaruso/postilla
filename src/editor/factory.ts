@@ -10,7 +10,7 @@ export function newText(page: number, x: number, y: number, s: Style): New<TextE
   return {
     type: 'text', page, x, y, rotation: 0, opacity: s.opacity,
     text: NEW_TEXT, lines: [NEW_TEXT], width: 220,
-    font: s.font, size: s.size, color: s.color, bold: s.bold, italic: s.italic, align: s.align,
+    font: s.font, size: s.size, color: s.color, bold: s.bold, italic: s.italic, underline: s.underline, align: s.align,
   }
 }
 
