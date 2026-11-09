@@ -11,8 +11,9 @@ import { PageView, PX_PER_PT } from '../editor/PageView'
 import { Properties } from '../editor/Properties'
 import { newImage, newShape, newText } from '../editor/factory'
 import { exportPdf } from '../pdf/export'
+import { missingChars } from '../pdf/coverage'
 import { useStore, type ToolId } from '../store'
-import type { Element } from '../model'
+import type { Element, FontFamily } from '../model'
 import { cn } from '../ui/cn'
 
 const TOOLS: Tool<ToolId>[] = [
@@ -52,6 +53,7 @@ export function EditorScreen() {
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
   const [mobileHintClosed, setMobileHintClosed] = useState(false)
+  const [missing, setMissing] = useState<string[]>([])
   const scale = (s.zoom / 100) * PX_PER_PT
 
   const fitWidth = () => {
@@ -81,6 +83,21 @@ export function EditorScreen() {
     root.querySelectorAll('[data-page]').forEach((n) => io.observe(n))
     return () => io.disconnect()
   }, [doc])
+
+  // Caratteri che il font non ha (emoji, alcuni simboli): nel PDF sparirebbero, quindi lo diciamo subito.
+  const textKey = JSON.stringify(
+    s.elements.flatMap((e) => (e.type === 'text' ? [[e.text, e.font, e.bold, e.italic]] : [])),
+  )
+  useEffect(() => {
+    let cancelled = false
+    const texts = JSON.parse(textKey) as Array<[string, FontFamily, boolean, boolean]>
+    void Promise.all(texts.map(([t, f, b, i]) => missingChars(t, f, b, i))).then((lists) => {
+      if (!cancelled) setMissing([...new Set(lists.flat())])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [textKey])
 
   /** Inserisce al centro della pagina corrente (uso da tastiera). */
   const insertAtCenter = (tool: 'text' | 'shape') => {
@@ -258,6 +275,13 @@ export function EditorScreen() {
         <Properties />
       </div>
 
+      {missing.length > 0 && (
+        <div className="px-3 pt-3">
+          <Banner tone="warning" title="Alcuni caratteri non finiranno nel PDF">
+            {missing.join(' ')} non {missing.length === 1 ? 'è disponibile' : 'sono disponibili'} nei font dell'editor (succede con le emoji e con alcuni simboli). Toglili o sostituiscili prima di salvare.
+          </Banner>
+        </div>
+      )}
       {s.exportError && (
         <div className="px-3 pt-3">
           <Banner tone="danger" title="Qualcosa non ha funzionato" onDismiss={() => s.setExportError(null)}>{s.exportError}</Banner>
