@@ -19,6 +19,8 @@ Object.assign(FabricObject.ownDefaults, {
   padding: 0,
   strokeUniform: true,
   lockScalingFlip: true,
+  // Pochi oggetti per pagina: disegnarli direttamente li tiene nitidi a ogni zoom.
+  objectCaching: false,
 })
 
 const ids = new WeakMap<FabricObject, string>()
@@ -33,7 +35,8 @@ function textProps(el: TextElement) {
     fontFamily: cssFamily(el.font),
     fontSize: el.size,
     fontWeight: el.bold ? '700' : '400',
-    fontStyle: el.italic ? ('italic' as const) : ('normal' as const),
+    // Il mono non ha il corsivo: niente corsivo finto nell'editor, l'export non lo avrebbe.
+    fontStyle: el.italic && el.font !== 'NotoSansMono' ? ('italic' as const) : ('normal' as const),
     fill: el.color,
     textAlign: el.align,
     lineHeight: TEXT_METRICS.lineHeight,

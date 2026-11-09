@@ -22,6 +22,9 @@ export function variantOf(f: FontFamily, bold: boolean, italic: boolean): Varian
 const fileOf = (f: FontFamily, v: Variant) => `${import.meta.env.BASE_URL}fonts/${f}-${v}.ttf`
 
 const loaded = new Map<string, Promise<void>>()
+const ready = new Set<string>()
+
+export const isFontLoaded = (f: FontFamily, bold = false, italic = false) => ready.has(`${f}-${variantOf(f, bold, italic)}`)
 
 /** Carica nel browser la variante richiesta (serve prima di misurare il testo). */
 export function loadFontFace(f: FontFamily, bold = false, italic = false): Promise<void> {
@@ -35,6 +38,7 @@ export function loadFontFace(f: FontFamily, bold = false, italic = false): Promi
     })
     p = face.load().then((ff) => {
       document.fonts.add(ff)
+      ready.add(key)
     })
     loaded.set(key, p)
   }

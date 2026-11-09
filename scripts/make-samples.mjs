@@ -1,6 +1,7 @@
 // Crea i PDF di prova in samples/ (dati di partenza per sviluppo, test e screenshot).
 // Uso: node scripts/make-samples.mjs
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { deflateSync, crc32 } from 'node:zlib'
 import { PDFDocument, StandardFonts, rgb, degrees, PageSizes } from '@cantoo/pdf-lib'
 
 const dir = new URL('../samples/', import.meta.url)
@@ -69,5 +70,27 @@ async function testo(doc, page, titolo) {
 
 // 6. Non è un PDF
 writeFileSync(new URL('non-sono-un-pdf.pdf', dir), 'Questo è un file di testo con estensione .pdf\n')
+
+// 7. Immagine PNG di prova (timbro 160×100 a quadri), scritta senza librerie
+{
+  const w = 160, h = 100
+  const raw = Buffer.alloc((w * 4 + 1) * h)
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 4 + 1)] = 0
+    for (let x = 0; x < w; x++) {
+      const i = y * (w * 4 + 1) + 1 + x * 4
+      const on = ((x >> 4) + (y >> 4)) % 2 === 0
+      raw.set(on ? [192, 42, 42, 255] : [255, 224, 102, 200], i)
+    }
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const td = Buffer.concat([Buffer.from(type), data])
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td))
+    return Buffer.concat([len, td, crc])
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr.set([8, 6, 0, 0, 0], 8)
+  writeFileSync(new URL('timbro.png', dir), Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]))
+}
 
 console.log('PDF di prova creati in samples/')

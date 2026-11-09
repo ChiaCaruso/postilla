@@ -51,6 +51,7 @@ export function EditorScreen() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
+  const [mobileHintClosed, setMobileHintClosed] = useState(false)
   const scale = (s.zoom / 100) * PX_PER_PT
 
   const fitWidth = () => {
@@ -262,9 +263,13 @@ export function EditorScreen() {
           <Banner tone="danger" title="Qualcosa non ha funzionato" onDismiss={() => s.setExportError(null)}>{s.exportError}</Banner>
         </div>
       )}
-      <div className="px-3 pt-3 md:hidden">
-        <Banner tone="info" title="Meglio da computer">Su schermi piccoli l'editor funziona, ma è scomodo da usare con le dita.</Banner>
-      </div>
+      {!mobileHintClosed && (
+        <div className="px-3 pt-3 md:hidden">
+          <Banner tone="info" title="Meglio da computer" onDismiss={() => setMobileHintClosed(true)}>
+            Su schermi piccoli l'editor funziona, ma è scomodo da usare con le dita.
+          </Banner>
+        </div>
+      )}
 
       <div className="relative flex min-h-0 grow">
         <div

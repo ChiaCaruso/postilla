@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Canvas, PencilBrush, type FabricObject, type Path, type Textbox } from 'fabric'
+import { Canvas, PencilBrush, cache, type FabricObject, type Path, type Textbox } from 'fabric'
 import type { RenderTask } from 'pdfjs-dist'
 import { useStore } from '../store'
 import type { Element, Pagina } from '../model'
 import { applyToObject, createObject, drawingFromPath, idOf, readFromObject } from './fabricBridge'
 import { newShape, newText } from './factory'
+import { cssFamily, isFontLoaded, loadFontFace } from '../pdf/fonts'
 
 export const PX_PER_PT = 96 / 72
 
@@ -141,7 +142,7 @@ export function PageView({ page, scale }: Props) {
   useEffect(() => {
     const c = fc.current
     if (!ready || !c) return
-    c.setDimensions({ width: w, height: h })
+    c.setDimensions({ width: Math.ceil(w), height: Math.ceil(h) })
     c.setZoom(scale)
     c.requestRenderAll()
   }, [ready, w, h, scale])
@@ -175,6 +176,15 @@ export function PageView({ page, scale }: Props) {
         objects.current.delete(id)
       }
     }
+    // Variante del font non ancora caricata (es. grassetto): prima la si carica, poi si ridisegna.
+    for (const el of mine) {
+      if (el.type === 'text' && !isFontLoaded(el.font, el.bold, el.italic)) {
+        void loadFontFace(el.font, el.bold, el.italic).then(() => {
+          cache.clearFontCache(cssFamily(el.font))
+          setObjVersion((v) => v + 1)
+        })
+      }
+    }
     let changedOrder = false
     for (const el of mine) {
       const o = objects.current.get(el.id)
@@ -201,7 +211,7 @@ export function PageView({ page, scale }: Props) {
     }
     if (changedOrder) restack(c, objects.current)
     c.requestRenderAll()
-  }, [ready, elements, page.indice])
+  }, [ready, elements, page.indice, objVersion])
 
   // Testo appena creato: entra subito in modifica con il testo selezionato.
   useEffect(() => {
