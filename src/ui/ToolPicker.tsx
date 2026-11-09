@@ -12,10 +12,12 @@ export interface Tool<T extends string> {
 }
 
 /** Gruppo di strumenti esclusivi: uno solo attivo, frecce per spostarsi. */
-export function ToolPicker<T extends string>({ tools, value, onChange, label }: {
+export function ToolPicker<T extends string>({ tools, value, onChange, onActivate, label }: {
   tools: Tool<T>[]
   value: T
   onChange: (v: T) => void
+  /** Chiamata a ogni attivazione; viaKeyboard = premuto con Invio o Spazio. */
+  onActivate?: (v: T, viaKeyboard: boolean) => void
   label: string
 }) {
   return (
@@ -30,7 +32,7 @@ export function ToolPicker<T extends string>({ tools, value, onChange, label }: 
         <Tooltip key={t.value} label={t.disabledReason ?? t.label} shortcut={t.disabledReason ? undefined : t.shortcut}>
           {/* span: il tooltip resta raggiungibile anche quando lo strumento è disabilitato */}
           <span tabIndex={t.disabledReason ? 0 : -1} className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-accent">
-            <TG.Item value={t.value} aria-label={t.label} disabled={!!t.disabledReason} className={iconButtonClass('md')}>
+            <TG.Item value={t.value} aria-label={t.label} disabled={!!t.disabledReason} className={iconButtonClass('md')} onClick={(e) => onActivate?.(t.value, e.detail === 0)}>
               {t.icon}
             </TG.Item>
           </span>
