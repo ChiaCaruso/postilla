@@ -35,7 +35,10 @@ test.describe('trasversali', () => {
   })
 
   test('X-E3 senza rete si apre, si modifica e si salva', async ({ page, context }, info) => {
+    // Con la rete staccata il browser segnala le richieste fallite (es. font standard di pdf.js): sono attese.
+    info.annotations.push({ type: 'console-ok', description: 'ERR_INTERNET_DISCONNECTED' })
     await page.goto('/')
+    await page.waitForLoadState('networkidle') // il precaricamento dei font è finito
     await context.setOffline(true)
     // stesso percorso di openPdf ma senza ricaricare la pagina
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Scegli un PDF' }).click()])

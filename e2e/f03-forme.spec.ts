@@ -81,4 +81,17 @@ test.describe('F03 forme e penna', () => {
       expect(score, `pagina ${i + 1}: ${score.toFixed(1)}% dei pixel disegnati coincide`).toBeGreaterThanOrEqual(95)
     }
   })
+
+  test('F03-E1 non si possono togliere insieme bordo e riempimento (la forma sparirebbe)', async ({ page }) => {
+    await openPdf(page, 'documento.pdf')
+    await page.getByRole('radio', { name: 'Forma' }).click()
+    await page.getByRole('radio', { name: 'Rettangolo' }).click()
+    const p = await pagePoint(page, 1, 300, 300, A4)
+    await page.mouse.click(p.x, p.y)
+    const [el] = await elements(page)
+    expect(el.fill).toBeNull() // per default la forma ha solo il bordo
+    await page.getByRole('button', { name: /^Bordo:/ }).click()
+    await expect(page.getByRole('radiogroup', { name: 'Bordo' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'Nessuno' })).toHaveCount(0)
+  })
 })

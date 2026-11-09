@@ -3,7 +3,8 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { MAX_BYTES, type Documento, type ErroreApertura, type Matrix, type Pagina } from '../model'
 import { invert } from './geometry'
 
-GlobalWorkerOptions.workerSrc = workerUrl
+// Il worker parte subito, all'apertura dell'app: se poi la rete cade, i PDF si aprono lo stesso.
+GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: 'module' })
 
 const base = `${import.meta.env.BASE_URL}pdfjs/`
 export const PDFJS_ASSETS = {

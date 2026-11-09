@@ -57,8 +57,9 @@ function ShapeControls({ shape, fill, stroke, strokeWidth, onChange }: {
   const line = shape === 'line'
   return (
     <PropertyGroup>
-      {!line && <ColorPicker label="Riempimento" value={fill} onChange={(c) => onChange({ fill: c })} allowNone />}
-      <ColorPicker label={line ? 'Colore' : 'Bordo'} value={stroke} onChange={(c) => onChange({ stroke: c ?? (line ? stroke : null) })} allowNone={!line} />
+      {/* "Nessuno" solo se resta l'altro: senza bordo né riempimento la forma diventerebbe invisibile. */}
+      {!line && <ColorPicker label="Riempimento" value={fill} onChange={(c) => onChange({ fill: c })} allowNone={stroke !== null} />}
+      <ColorPicker label={line ? 'Colore' : 'Bordo'} value={stroke} onChange={(c) => onChange({ stroke: c ?? (line ? stroke : null) })} allowNone={!line && fill !== null} />
       <Slider label="Spessore" value={strokeWidth} onChange={(n) => onChange({ strokeWidth: n })} min={1} max={20} unit=" pt" disabled={!stroke} />
     </PropertyGroup>
   )

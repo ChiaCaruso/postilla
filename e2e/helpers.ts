@@ -11,10 +11,12 @@ export const sample = (name: string) => fileURLToPath(new URL(`../samples/${name
 /** Ogni test fallisce se compaiono errori in console, eccezioni o risposte 5xx. */
 export const test = base.extend<{ guard: void }>({
   guard: [
-    async ({ page }, use) => {
+    async ({ page }, use, info) => {
       const errors: string[] = []
+      // Un test può dichiarare errori attesi: test.info().annotations.push({ type: 'console-ok', description: 'regex' })
+      const allowed = () => info.annotations.filter((a) => a.type === 'console-ok').map((a) => new RegExp(a.description!))
       page.on('console', (m) => {
-        if (m.type() === 'error') errors.push(`console: ${m.text()}`)
+        if (m.type() === 'error' && !allowed().some((r) => r.test(m.text()))) errors.push(`console: ${m.text()}`)
       })
       page.on('pageerror', (e) => errors.push(`eccezione: ${e.message}`))
       page.on('response', (r) => {

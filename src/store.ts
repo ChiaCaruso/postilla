@@ -101,7 +101,8 @@ export const useStore = create<State>()((set, get) => ({
     set({ doc: null, pdfjs: null, elements: [], selectedId: null, result: null, exportError: null, screen: 'upload', tool: 'select' })
   },
   setScreen: (screen) => set({ screen }),
-  setTool: (tool) => set({ tool }),
+  // Scegliere uno strumento per inserire qualcosa deseleziona: la barra mostra le opzioni del nuovo elemento.
+  setTool: (tool) => set({ tool, selectedId: tool === 'select' ? get().selectedId : null }),
   setZoom: (zoom) => set({ zoom: Math.min(400, Math.max(25, Math.round(zoom))) }),
   setCurrentPage: (currentPage) => set({ currentPage }),
   setStyle: (s) => set({ style: { ...get().style, ...s } }),

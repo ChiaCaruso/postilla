@@ -47,7 +47,7 @@ const isTyping = (t: EventTarget | null) =>
 export function EditorScreen() {
   const s = useStore()
   const doc = s.doc!
-  const scroller = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLElement>(null)
   const imageInput = useRef<HTMLInputElement>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -242,7 +242,8 @@ export function EditorScreen() {
         <Button size="sm" icon={<Download className="size-4" aria-hidden />} onClick={() => void save()}>Salva il PDF</Button>
       </header>
 
-      <div className="shrink-0 overflow-x-auto">
+      <section aria-label="Strumenti di modifica" className="shrink-0">
+        <div className="overflow-x-auto">
         <Toolbar label="Strumenti">
           <ToolPicker
             label="Strumento attivo"
@@ -272,8 +273,8 @@ export function EditorScreen() {
             <IconButton label={`Elementi (${s.elements.length})`} icon={<Layers />} pressed={panelOpen} onClick={() => setPanelOpen(!panelOpen)} />
           </div>
         </Toolbar>
+        </div>
         <Properties />
-      </div>
 
       {missing.length > 0 && (
         <div className="px-3 pt-3">
@@ -295,10 +296,14 @@ export function EditorScreen() {
         </div>
       )}
 
+      </section>
+
       <div className="relative flex min-h-0 grow">
-        <div
+        <main
           ref={scroller}
-          className="grow overflow-auto bg-canvas"
+          aria-label="Pagine del documento"
+          tabIndex={0}
+          className="grow overflow-auto bg-canvas focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
           onPointerDown={(e) => {
             // Clic sullo sfondo grigio: deseleziona.
             if (e.target === e.currentTarget) s.select(null)
@@ -309,7 +314,7 @@ export function EditorScreen() {
               <PageView key={p.indice} page={p} scale={scale} />
             ))}
           </div>
-        </div>
+        </main>
         <div className={cn('h-full shrink-0', 'max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-30 max-lg:shadow-pop', !panelOpen && 'max-lg:hidden')}>
           {panel}
         </div>

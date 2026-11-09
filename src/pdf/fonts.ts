@@ -32,14 +32,19 @@ export function loadFontFace(f: FontFamily, bold = false, italic = false): Promi
   const key = `${f}-${v}`
   let p = loaded.get(key)
   if (!p) {
-    const face = new FontFace(cssFamily(f), `url("${fileOf(f, v)}")`, {
-      weight: v.startsWith('Bold') ? '700' : '400',
-      style: v.endsWith('Italic') ? 'italic' : 'normal',
-    })
-    p = face.load().then((ff) => {
-      document.fonts.add(ff)
-      ready.add(key)
-    })
+    // Dai byte già in memoria (gli stessi dell'export): niente seconda richiesta, funziona anche offline.
+    p = fontBytes(f, bold, italic)
+      .then((bytes) =>
+        new FontFace(cssFamily(f), bytes, {
+          weight: v.startsWith('Bold') ? '700' : '400',
+          style: v.endsWith('Italic') ? 'italic' : 'normal',
+        }).load(),
+      )
+      .then((ff) => {
+        document.fonts.add(ff)
+        ready.add(key)
+      })
+    p.catch(() => loaded.delete(key))
     loaded.set(key, p)
   }
   return p
@@ -56,7 +61,20 @@ export function fontBytes(f: FontFamily, bold: boolean, italic: boolean): Promis
       if (!r.ok) throw new Error(`Font ${key} non trovato`)
       return r.arrayBuffer()
     })
+    // Se il download fallisce (es. rete assente) si riproverà la volta dopo.
+    p.catch(() => bytesCache.delete(key))
     bytesCache.set(key, p)
   }
   return p
+}
+
+/** Scarica in memoria tutte le varianti, quando il browser è libero: dopo, editor ed export non hanno più bisogno della rete. */
+export function prefetchAllFonts() {
+  const run = () => {
+    for (const { value } of FONT_FAMILIES) {
+      for (const bold of [false, true]) for (const italic of [false, true]) void fontBytes(value, bold, italic).catch(() => {})
+    }
+  }
+  if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 3000 })
+  else setTimeout(run, 1000)
 }
