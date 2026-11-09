@@ -319,6 +319,11 @@ export function EditorScreen() {
           </Banner>
         </div>
       )}
+      {s.notice && (
+        <div className="px-3 pt-3">
+          <Banner tone="info" title="Non è stato possibile annotare" onDismiss={() => s.setNotice(null)}>{s.notice}</Banner>
+        </div>
+      )}
       {s.exportError && (
         <div className="px-3 pt-3">
           <Banner tone="danger" title="Qualcosa non ha funzionato" onDismiss={() => s.setExportError(null)}>{s.exportError}</Banner>

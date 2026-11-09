@@ -67,6 +67,8 @@ interface State {
   exportError: string | null
   /** Testo appena creato da mettere subito in modifica (lo esegue la pagina che lo contiene). */
   editRequest: Id | null
+  /** Messaggio informativo per l'utente (es. perché un'azione non ha avuto effetto). */
+  notice: string | null
 
   openDocument: (doc: Documento, pdfjs: PDFDocumentProxy) => void
   closeDocument: () => void
@@ -88,6 +90,7 @@ interface State {
   setResult: (r: Result | null) => void
   setExportError: (e: string | null) => void
   requestEdit: (id: Id | null) => void
+  setNotice: (n: string | null) => void
 }
 
 export const DEFAULT_STYLE: Style = {
@@ -152,16 +155,17 @@ export const useStore = create<State>()((set, get) => {
     result: null,
     exportError: null,
     editRequest: null,
+    notice: null,
 
     openDocument: (doc, pdfjs) =>
-      set({ doc, pdfjs, elements: [], past: [], future: [], selectedId: null, tool: 'select', currentPage: 0, result: null, exportError: null, screen: 'editor' }),
+      set({ doc, pdfjs, elements: [], past: [], future: [], selectedId: null, tool: 'select', currentPage: 0, result: null, exportError: null, notice: null, screen: 'editor' }),
     closeDocument: () => {
       void get().pdfjs?.loadingTask.destroy()
-      set({ doc: null, pdfjs: null, elements: [], past: [], future: [], selectedId: null, result: null, exportError: null, screen: 'upload', tool: 'select' })
+      set({ doc: null, pdfjs: null, elements: [], past: [], future: [], selectedId: null, result: null, exportError: null, notice: null, screen: 'upload', tool: 'select' })
     },
     setScreen: (screen) => set({ screen }),
     // Scegliere uno strumento per inserire qualcosa deseleziona: la barra mostra le opzioni del nuovo elemento.
-    setTool: (tool) => set({ tool, selectedId: tool === 'select' ? get().selectedId : null }),
+    setTool: (tool) => set({ tool, selectedId: tool === 'select' ? get().selectedId : null, notice: null }),
     setZoom: (zoom) => set({ zoom: Math.min(400, Math.max(25, Math.round(zoom))) }),
     setCurrentPage: (currentPage) => set({ currentPage }),
     setStyle: (s) => set({ style: { ...get().style, ...s } }),
@@ -249,6 +253,7 @@ export const useStore = create<State>()((set, get) => {
     setResult: (result) => set({ result }),
     setExportError: (exportError) => set({ exportError }),
     requestEdit: (editRequest) => set({ editRequest }),
+    setNotice: (notice) => set({ notice }),
   }
 })
 

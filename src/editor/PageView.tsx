@@ -6,7 +6,7 @@ import type { Element, Pagina } from '../model'
 import { applyToObject, createObject, drawingFromPath, idOf, needsRecreate, readFromObject } from './fabricBridge'
 import { newShape, newText } from './factory'
 import { cssFamily, isFontLoaded, loadFontFace } from '../pdf/fonts'
-import { boundRects, getTextRuns, selectRuns } from '../pdf/textRuns'
+import { boundRects, getTextRuns, overlaps, selectRuns } from '../pdf/textRuns'
 import tokens from '../../docs/design/tokens.json'
 
 export const PX_PER_PT = 96 / 72
@@ -24,6 +24,8 @@ export function PageView({ page, scale }: Props) {
   const fc = useRef<Canvas | null>(null)
   const objects = useRef(new Map<string, FabricObject>())
   const pending = useRef(new Set<string>())
+  /** Vero mentre è l'editor (non l'utente) a cambiare la selezione di Fabric: quegli eventi non toccano lo store. */
+  const programmatic = useRef(false)
   const [visible, setVisible] = useState(false)
   const [ready, setReady] = useState(false)
   /** Cresce quando un oggetto creato in modo asincrono (es. immagine) arriva sul canvas. */
@@ -130,10 +132,16 @@ export function PageView({ page, scale }: Props) {
       dragRect = null
       const s = useStore.getState()
       if (!s.pdfjs) return
-      void getTextRuns(s.pdfjs, page.indice).then((runs) => {
+      void getTextRuns(s.pdfjs, page.indice).then(({ runs, rotated }) => {
         const sel = selectRuns(runs, drag)
-        if (!sel.rects.length) return
         const st = useStore.getState()
+        if (!sel.rects.length) {
+          if (rotated.some((r) => overlaps(drag, r))) {
+            st.setNotice('Qui il testo è ruotato: per ora si può evidenziare solo il testo orizzontale. Puoi usare l\'evidenziatore a mano libera.')
+          }
+          return
+        }
+        st.setNotice(null)
         const { x, y, rel } = boundRects(sel.rects)
         const style = st.style.annotStyle
         st.addElement({
@@ -160,6 +168,7 @@ export function PageView({ page, scale }: Props) {
       if (id && !(target as Textbox).text.trim()) useStore.getState().removeElement(id)
     })
     const onSelect = () => {
+      if (programmatic.current) return
       const active = canvas.getActiveObjects()
       if (active.length > 1) {
         canvas.setActiveObject(active[0])
@@ -171,6 +180,7 @@ export function PageView({ page, scale }: Props) {
     canvas.on('selection:created', onSelect)
     canvas.on('selection:updated', onSelect)
     canvas.on('selection:cleared', () => {
+      if (programmatic.current) return
       const s = useStore.getState()
       const sel = s.elements.find((e) => e.id === s.selectedId)
       if (sel && sel.page === page.indice) s.select(null)
@@ -289,7 +299,11 @@ export function PageView({ page, scale }: Props) {
           applyToObject(currentElement(el.id) ?? el, obj)
           syncTextLines(el.id, obj)
           restack(c, objects.current)
-          if (useStore.getState().selectedId === el.id) c.setActiveObject(obj)
+          if (useStore.getState().selectedId === el.id) {
+            programmatic.current = true
+            c.setActiveObject(obj)
+            programmatic.current = false
+          }
           c.requestRenderAll()
           setObjVersion((v) => v + 1)
         })
@@ -321,8 +335,15 @@ export function PageView({ page, scale }: Props) {
     const c = fc.current
     if (!ready || !c) return
     const o = selectedId ? objects.current.get(selectedId) : undefined
-    if (o && c.getActiveObject() !== o) c.setActiveObject(o)
-    if (!o && c.getActiveObject()) c.discardActiveObject()
+    // Se l'oggetto selezionato non è ancora sul canvas (appena creato), arriverà tra un istante:
+    // intanto si toglie la selezione precedente senza che questo cancelli quella nuova.
+    programmatic.current = true
+    try {
+      if (o && c.getActiveObject() !== o) c.setActiveObject(o)
+      if (!o && c.getActiveObject()) c.discardActiveObject()
+    } finally {
+      programmatic.current = false
+    }
     c.requestRenderAll()
   }, [ready, selectedId])
 
