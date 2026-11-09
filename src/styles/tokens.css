@@ -1,0 +1,72 @@
+/* Generato da scripts/tokens.mjs a partire da docs/design/tokens.json. Non modificare a mano. */
+@theme {
+  /* Solo i colori dei token: la tavolozza predefinita di Tailwind è disattivata. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: #ffffff;
+  --color-surface: #f6f7f9;
+  --color-canvas: #e8ebef;
+  --color-page: #ffffff;
+  --color-border: #dde1e6;
+  --color-border-input: #7d8591;
+  --color-text: #14171c;
+  --color-text-muted: #555e6b;
+  --color-accent: #2f5bea;
+  --color-accent-hover: #2449c4;
+  --color-accent-subtle: #e9effd;
+  --color-on-accent: #ffffff;
+  --color-selection: #2f5bea;
+  --color-danger: #c02a2a;
+  --color-danger-subtle: #fdeeee;
+  --color-success: #1d7148;
+  --color-warning: #835400;
+  --color-warning-subtle: #fff5e0;
+  --font-sans: Inter Variable, Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-xs--font-weight: 500;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-sm--font-weight: 400;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-base--font-weight: 400;
+  --text-lg: 20px;
+  --text-lg--line-height: 28px;
+  --text-lg--font-weight: 600;
+  --text-xl: 28px;
+  --text-xl--line-height: 34px;
+  --text-xl--font-weight: 700;
+  --text-display: 40px;
+  --text-display--line-height: 44px;
+  --text-display--font-weight: 700;
+  --spacing: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+  --shadow-page: 0 1px 3px rgba(16,24,40,.12), 0 4px 12px rgba(16,24,40,.08);
+  --shadow-pop: 0 12px 32px rgba(16,24,40,.16);
+  --ease-standard: cubic-bezier(.2,.8,.2,1);
+  --default-transition-duration: 120ms;
+  --default-transition-timing-function: cubic-bezier(.2,.8,.2,1);
+  --breakpoint-*: initial;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
+}
+
+:root {
+  --layout-header: 56px;
+  --layout-toolbar: 48px;
+  --layout-propertybar: 44px;
+  --layout-panel: 288px;
+  --layout-upload-max: 960px;
+  --layout-page-gap: 24px;
+  --layout-hit-min: 32px;
+  --layout-handle: 10px;
+  --motion-base: 200ms;
+}
