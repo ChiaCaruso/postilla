@@ -1,4 +1,4 @@
-// Modello dati dell'editor (versione eseguibile di docs/schema.ts).
+// Modello dati dell'editor.
 // Tutto vive in memoria nel browser e sparisce chiudendo la scheda.
 //
 // Unità: punti PDF (1/72 di pollice).
