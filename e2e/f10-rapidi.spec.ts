@@ -32,19 +32,22 @@ test.describe('avanzamento all\'apertura', () => {
     await expect(bar).toHaveCount(0)
   })
 
-  test('S01-E3 un PDF piccolo si apre senza lampi di barre', async ({ page }) => {
+  test('S01-E3 nessuna barra prima di mezzo secondo (niente lampi con i PDF piccoli)', async ({ page }) => {
     await page.goto('/')
-    let seen = false
-    page.on('framenavigated', () => {})
-    await page.exposeFunction('__barSeen', () => (seen = true))
+    // Se la barra compare, deve essere passato almeno mezzo secondo dalla scelta del file.
+    // (Su una macchina molto carica anche un PDF piccolo può superarlo: allora la barra è giusta.)
     await page.evaluate(() => {
+      const w = window as never as { __barAt?: number }
       new MutationObserver(() => {
-        if (document.querySelector('[role="progressbar"]')) (window as never as { __barSeen: () => void }).__barSeen()
+        if (w.__barAt === undefined && document.querySelector('[role="progressbar"]')) w.__barAt = performance.now()
       }).observe(document.body, { childList: true, subtree: true })
     })
-    await chooseFile(page, 'Scegli un PDF', sample('documento.pdf'))
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Scegli un PDF' }).click()])
+    const t0 = await page.evaluate(() => performance.now())
+    await chooser.setFiles(sample('documento.pdf'))
     await expect(page.getByRole('figure', { name: 'Pagina 1', exact: true })).toBeVisible()
-    expect(seen).toBe(false)
+    const barAt = await page.evaluate(() => (window as never as { __barAt?: number }).__barAt)
+    if (barAt !== undefined) expect(barAt - t0, 'la barra è comparsa troppo presto').toBeGreaterThanOrEqual(550)
   })
 })
 
