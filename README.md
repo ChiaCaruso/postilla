@@ -11,7 +11,7 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
 ![Test](https://img.shields.io/badge/test%20e2e-75%20verdi-2ea44f?logo=playwright&logoColor=white)
-![Versione](https://img.shields.io/badge/versione-0.3.1-555)
+![Versione](https://img.shields.io/badge/versione-0.4.0-555)
 ![Licenza](https://img.shields.io/badge/licenza-MIT-blue)
 
 </div>
