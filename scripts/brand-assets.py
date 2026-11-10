@@ -10,6 +10,7 @@ Uso: python3 scripts/brand-assets.py   (serve Pillow: pip install pillow)
 - public/favicon-192.png               icona grande (mascotte)
 - public/favicon.ico                   icona classica, 16/32/48 px (foglio con la faccia)
 - public/apple-touch-icon.png         icona per iPhone/iPad, sfondo bianco (Apple non vuole trasparenze)
+- brand/postilla-logo-readme.png      logo su fondo bianco per il README (leggibile anche col tema scuro di GitHub)
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -92,6 +93,10 @@ face = face.crop(face.getbbox())
 square(face, 16).save(OUT / 'favicon-16.png', optimize=True)
 square(face, 32).save(OUT / 'favicon-32.png', optimize=True)
 square(mascot, 192).save(OUT / 'favicon-192.png', optimize=True)
+# Logo per il README di GitHub: su fondo bianco con margine, così resta leggibile anche con il tema scuro.
+readme = Image.new('RGBA', (logo.width + 160, logo.height + 120), (255, 255, 255, 255))
+readme.alpha_composite(logo, (80, 60))
+fit(readme, 360).convert('RGB').save(ROOT / 'brand' / 'postilla-logo-readme.png', optimize=True)
 # favicon.ico classico (16, 32, 48 px in un solo file): lo cercano da soli browser, segnalibri e Windows
 square(face, 256).save(OUT / 'favicon.ico', sizes=[(16, 16), (32, 32), (48, 48)])
 square(mascot.crop(mascot.getbbox()), 180, bg=(255, 255, 255)).convert('RGB').save(OUT / 'apple-touch-icon.png', optimize=True)
