@@ -69,7 +69,7 @@ export function UploadScreen() {
   return (
     <main className="mx-auto flex w-full max-w-(--layout-upload-max) flex-col gap-6 px-4 py-10 md:px-6 md:py-16">
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold text-accent">Postilla</p>
+        <img src={`${import.meta.env.BASE_URL}brand/postilla-logo.png`} alt="Postilla" width={480} height={532} className="mb-2 h-32 w-auto self-start md:h-40" />
         <h1 className="text-xl">Modifica un PDF</h1>
         <p className="text-base text-text-muted">Scrivi, evidenzia, commenta e disegna sui tuoi PDF, poi salvane una copia.</p>
       </div>
