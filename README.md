@@ -132,6 +132,13 @@ npm run build
 
 `dist/` contiene solo file statici: va bene qualsiasi server web, anche interno, oppure servizi come Netlify o Vercel (con accesso protetto se lo strumento è solo per il team). Nessun server applicativo, nessun database, nessuna variabile d'ambiente.
 
+### Su Vercel
+
+Il repository contiene già `vercel.json`: basta importarlo su [vercel.com](https://vercel.com) (*Add New → Project*) e cliccare *Deploy*. Ogni `git push` su `main` aggiorna il sito; le pull request ricevono un indirizzo di anteprima.
+`vercel.json` fissa il comando di build (`npm run build`, che copia anche le risorse di pdf.js), aggiunge intestazioni di sicurezza (niente inclusione in altri siti, niente fotocamera/microfono/posizione, HTTPS obbligatorio) e una cache lunga per i file che non cambiano.
+
+### Sicurezza della pagina
+
 La build inserisce già nella pagina una Content Security Policy che consente solo risorse dello stesso sito. Se il server aggiunge una propria intestazione `Content-Security-Policy`, deve permettere anche `'wasm-unsafe-eval'` per gli script e `blob:` per worker e immagini.
 
 ## Come funziona
