@@ -12,6 +12,7 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
 ![Test](https://img.shields.io/badge/test%20e2e-75%20verdi-2ea44f?logo=playwright&logoColor=white)
 ![Versione](https://img.shields.io/badge/versione-0.3.1-555)
+![Licenza](https://img.shields.io/badge/licenza-MIT-blue)
 
 </div>
 
@@ -29,6 +30,8 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 - [Come funziona](#come-funziona)
 - [Struttura del progetto](#struttura-del-progetto)
 - [Limiti noti](#limiti-noti)
+- [Documentazione](#documentazione)
+- [Contribuire](#contribuire)
 - [Licenze e crediti](#licenze-e-crediti)
 
 ## Perché Postilla
@@ -163,7 +166,7 @@ samples/      PDF di prova (rigenerabili)
 scripts/      font, risorse di pdf.js, token, PDF di prova, logo e icone
 brand/        logo sorgente
 public/       font incorporabili, logo, icone
-docs/      design (token e componenti) e screenshot
+docs/         architettura, design (token e componenti), registro dei lavori, piano di test, difetti, marchio, screenshot
 ```
 
 ## Limiti noti
@@ -175,9 +178,24 @@ docs/      design (token e componenti) e screenshot
 - Senza rete, i PDF che usano font non incorporati possono apparire con un font sostitutivo.
 
 
+## Documentazione
+
+| documento | contenuto |
+| --- | --- |
+| [Architettura](docs/architettura.md) | scelte tecniche, modello dei dati, parti difficili |
+| [Registro dei lavori](docs/registro.md) | cosa è stato costruito, quando, cosa è stato più difficile del previsto, cosa manca |
+| [Piano di test](docs/test.md) | tutti i casi provati, con esito |
+| [Difetti](docs/difetti.md) | i difetti trovati, come riprodurli, come sono stati corretti |
+| [Design](docs/design/components.md) | componenti dell'interfaccia; colori e misure in `docs/design/tokens.json` |
+| [Marchio](docs/marchio.md) | nome, logo e icone, colori, tono dei testi |
+
+## Contribuire
+
+Le modifiche passano dai test: `npm test` deve restare verde. Colori e misure si cambiano solo nei token (`docs/design/tokens.json`, poi `npm run tokens`), mai a mano nei componenti.
+
 ## Licenze e crediti
 
-Codice dell'app: uso interno.
+Codice di Postilla: [licenza MIT](LICENSE). Le librerie e i font mantengono le loro licenze:
 
 | componente | licenza |
 | --- | --- |

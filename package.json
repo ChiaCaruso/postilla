@@ -43,5 +43,6 @@
     "typescript": "~7.0.2",
     "vite": "^8.3.6"
   },
-  "description": "Editor PDF interno: testo, immagini, forme, annotazioni e commenti, tutto nel browser"
+  "description": "Editor PDF interno: testo, immagini, forme, annotazioni e commenti, tutto nel browser",
+  "license": "MIT"
 }
