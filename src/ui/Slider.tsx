@@ -17,7 +17,6 @@ export function Slider({ label, value, onChange, min = 0, max = 100, step = 1, u
     <div className="flex items-center gap-2">
       <span id={id} className="text-xs text-text-muted">{label}</span>
       <S.Root
-        aria-labelledby={id}
         value={[value]}
         onValueChange={([v]) => onChange(v)}
         min={min}
@@ -30,6 +29,7 @@ export function Slider({ label, value, onChange, min = 0, max = 100, step = 1, u
           <S.Range className="absolute h-full rounded-pill bg-accent" />
         </S.Track>
         <S.Thumb
+          aria-labelledby={id}
           aria-valuetext={`${value}${unit}`}
           className="block size-4 rounded-pill border-2 border-accent bg-bg shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         />

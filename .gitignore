@@ -26,3 +26,6 @@ dist-ssr
 # strumenti locali
 .playwright-mcp/
 samples/out/
+public/pdfjs/
+e2e-report/
+test-results/
