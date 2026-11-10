@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Dropzone } from '../ui/Dropzone'
+import { ProgressBar } from '../ui/ProgressBar'
 import { Banner } from '../ui/Banner'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
@@ -25,12 +26,21 @@ export function UploadScreen() {
   const [locked, setLocked] = useState<File | null>(null)
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string | undefined>()
+  /** Avanzamento dell'apertura, mostrato solo se dura più di un attimo (niente lampi con i file piccoli). */
+  const [progress, setProgress] = useState<number | null>(null)
+  const progressValue = useRef(0)
 
   async function tryOpen(file: File, pw?: string) {
     setBusy(true)
     setError(null)
+    progressValue.current = 0
+    const show = setTimeout(() => setProgress(progressValue.current), 600)
+    const onProgress = (f: number) => {
+      progressValue.current = f
+      setProgress((p) => (p === null ? null : f))
+    }
     try {
-      const opened = await openPdf(file, pw)
+      const opened = await openPdf(file, pw, onProgress)
       // I font del testo devono essere pronti prima che l'editor misuri le righe.
       await Promise.all(FONT_FAMILIES.map((f) => loadFontFace(f.value)))
       setLocked(null)
@@ -48,6 +58,8 @@ export function UploadScreen() {
         setError(code)
       }
     } finally {
+      clearTimeout(show)
+      setProgress(null)
       setBusy(false)
     }
   }
@@ -61,6 +73,7 @@ export function UploadScreen() {
         <p className="text-base text-text-muted">Aggiungi testo, immagini, forme e disegni, poi salva una copia del PDF.</p>
       </div>
       <Dropzone onFile={(f) => void tryOpen(f)} busy={busy && !locked} />
+      {progress !== null && <ProgressBar label="Apertura del PDF" value={Math.round(progress * 100)} />}
       {msg && (
         <Banner tone="danger" title={msg.title} onDismiss={() => setError(null)}>
           {msg.body}

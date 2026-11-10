@@ -33,9 +33,12 @@ function looksLikePdf(bytes: Uint8Array) {
   return head.includes('%PDF-')
 }
 
-export async function openPdf(file: File, password?: string): Promise<Opened> {
+/** onProgress riceve un valore da 0 a 1: lettura del file, poi una pagina alla volta. */
+export async function openPdf(file: File, password?: string, onProgress?: (fraction: number) => void): Promise<Opened> {
   if (file.size > MAX_BYTES) throw new OpenError('troppo_grande')
+  onProgress?.(0)
   const bytes = new Uint8Array(await file.arrayBuffer())
+  onProgress?.(0.1)
   if (!looksLikePdf(bytes)) throw new OpenError('non_pdf')
 
   let pdfjs: PDFDocumentProxy
@@ -53,6 +56,7 @@ export async function openPdf(file: File, password?: string): Promise<Opened> {
   const pagine: Pagina[] = []
   for (let i = 0; i < pdfjs.numPages; i++) {
     const page = await pdfjs.getPage(i + 1)
+    onProgress?.(0.15 + 0.8 * ((i + 1) / pdfjs.numPages))
     const vp = page.getViewport({ scale: 1 })
     // vp.transform porta le coordinate del PDF in coordinate "come si vede": ci serve l'inversa.
     pagine.push({ indice: i, larghezza: vp.width, altezza: vp.height, toPdf: invert(vp.transform as Matrix) })
@@ -64,6 +68,7 @@ export async function openPdf(file: File, password?: string): Promise<Opened> {
     haTesto = content.items.some((it) => 'str' in it && it.str.trim().length > 0)
   }
 
+  onProgress?.(1)
   return {
     pdfjs,
     doc: {

@@ -156,9 +156,28 @@ export function boundRects(rects: Box[]): { x: number; y: number; rel: Box[] } {
   return { x, y, rel: rects.map((r) => ({ x: r.x - x, y: r.y - y, w: r.w, h: r.h })) }
 }
 
-/** Geometria disegnata per stile: evidenziazione = tutta l'area; sottolineatura e barratura = una barra sottile. */
-export function annotationBars(style: 'highlight' | 'underline' | 'strike', r: Box): Box {
-  if (style === 'highlight') return r
+export type Point = [number, number]
+
+/**
+ * Forme disegnate per stile, come poligoni (coordinate "come si vede"):
+ * evidenziazione = tutta l'area; sottolineatura e barratura = una barra sottile; onda = una fascia a zigzag.
+ */
+export function annotationShapes(style: 'highlight' | 'underline' | 'strike' | 'squiggly', r: Box): Point[][] {
+  const rect = (b: Box): Point[] => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]
+  if (style === 'highlight') return [rect(r)]
   const t = Math.max(0.75, r.h / 14)
-  return style === 'underline' ? { x: r.x, y: r.y + r.h * 0.9 - t, w: r.w, h: t } : { x: r.x, y: r.y + r.h * 0.55 - t / 2, w: r.w, h: t }
+  if (style === 'underline') return [rect({ x: r.x, y: r.y + r.h * 0.9 - t, w: r.w, h: t })]
+  if (style === 'strike') return [rect({ x: r.x, y: r.y + r.h * 0.55 - t / 2, w: r.w, h: t })]
+  // onda: zigzag sotto la riga, ampiezza e passo proporzionati all'altezza del testo
+  const amp = r.h * 0.07
+  const step = r.h * 0.14
+  const mid = r.y + r.h * 0.9 - amp - t / 2
+  const top: Point[] = []
+  for (let i = 0, x = r.x; ; i++, x += step) {
+    const cx = Math.min(x, r.x + r.w)
+    top.push([cx, mid + (i % 2 === 0 ? -amp : amp)])
+    if (cx >= r.x + r.w) break
+  }
+  const bottom: Point[] = top.map(([x, y]) => [x, y + t] as Point).reverse()
+  return [[...top, ...bottom]]
 }

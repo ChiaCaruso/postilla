@@ -68,6 +68,14 @@ async function testo(doc, page, titolo) {
   await save('scansione.pdf', doc)
 }
 
+// 5b. Documento lungo (500 pagine): per provare l'avanzamento all'apertura
+{
+  const doc = await PDFDocument.create()
+  const font = await doc.embedFont(StandardFonts.Helvetica)
+  for (let i = 1; i <= 500; i++) doc.addPage(PageSizes.A4).drawText(`Pagina ${i} di 500`, { x: 56, y: 780, size: 14, font })
+  await save('lungo.pdf', doc)
+}
+
 // 6. Non è un PDF
 writeFileSync(new URL('non-sono-un-pdf.pdf', dir), 'Questo è un file di testo con estensione .pdf\n')
 

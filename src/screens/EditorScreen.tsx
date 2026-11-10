@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Brush, Download, Hand, Highlighter, ImagePlus, Layers, MousePointer2, Redo2, Shapes, Square, Circle, Minus, Strikethrough, Type, PenLine, TextSelect, Underline, Undo2, X } from 'lucide-react'
+import { Brush, Download, Hand, Highlighter, ImagePlus, Layers, MousePointer2, Redo2, Shapes, Square, Circle, Minus, MessageSquare, Strikethrough, Type, PenLine, TextSelect, Underline, Undo2, Waves, X } from 'lucide-react'
 import { Toolbar, ToolbarSeparator, ToolPicker, type Tool } from '../ui/ToolPicker'
 import { IconButton } from '../ui/IconButton'
 import { Button } from '../ui/Button'
@@ -9,7 +9,7 @@ import { ElementRow, ElementsPanel } from '../ui/ElementRow'
 import { Modal } from '../ui/Modal'
 import { PageView, PX_PER_PT } from '../editor/PageView'
 import { Properties } from '../editor/Properties'
-import { newImage, newShape, newText } from '../editor/factory'
+import { newComment, newImage, newShape, newText } from '../editor/factory'
 import { exportPdf } from '../pdf/export'
 import { missingChars } from '../pdf/coverage'
 import { useStore, type ToolId } from '../store'
@@ -33,9 +33,10 @@ function toolsFor(haTesto: boolean): Tool<ToolId>[] {
       shortcut: 'A',
       disabledReason: haTesto ? undefined : NO_TEXT,
     },
+    { value: 'comment', label: 'Commento', icon: <MessageSquare />, shortcut: 'C' },
   ]
 }
-const SHORTCUTS: Record<string, ToolId> = { v: 'select', h: 'hand', t: 'text', r: 'shape', p: 'draw', e: 'marker', a: 'annotate' }
+const SHORTCUTS: Record<string, ToolId> = { v: 'select', h: 'hand', t: 'text', r: 'shape', p: 'draw', e: 'marker', a: 'annotate', c: 'comment' }
 
 function describe(el: Element): { title: string; icon: React.ReactNode } {
   switch (el.type) {
@@ -51,9 +52,12 @@ function describe(el: Element): { title: string; icon: React.ReactNode } {
         : el.shape === 'ellipse'
           ? { title: 'Ellisse', icon: <Circle /> }
           : { title: 'Linea', icon: <Minus /> }
+    case 'comment':
+      return { title: `Commento: ${el.text.replace(/\s+/g, ' ').trim() || '(vuoto)'}`, icon: <MessageSquare /> }
     case 'annotation': {
-      const what = el.style === 'highlight' ? 'Evidenziato' : el.style === 'underline' ? 'Sottolineato' : 'Barrato'
-      return { title: `${what}: ${el.text}`, icon: el.style === 'highlight' ? <TextSelect /> : el.style === 'underline' ? <Underline /> : <Strikethrough /> }
+      const what = { highlight: 'Evidenziato', underline: 'Sottolineato', strike: 'Barrato', squiggly: 'Sottolineato con onda' }[el.style]
+      const icon = { highlight: <TextSelect />, underline: <Underline />, strike: <Strikethrough />, squiggly: <Waves /> }[el.style]
+      return { title: `${what}: ${el.text}`, icon }
     }
   }
 }
@@ -120,11 +124,12 @@ export function EditorScreen() {
   }, [textKey])
 
   /** Inserisce al centro della pagina corrente (uso da tastiera). */
-  const insertAtCenter = (tool: 'text' | 'shape') => {
+  const insertAtCenter = (tool: 'text' | 'shape' | 'comment') => {
     const st = useStore.getState()
     const page = doc.pagine[st.currentPage]
-    const base = tool === 'text' ? newText(page.indice, 0, 0, st.style) : newShape(page.indice, 0, 0, st.style)
-    const w = base.type === 'text' ? base.width : base.w
+    const base =
+      tool === 'text' ? newText(page.indice, 0, 0, st.style) : tool === 'shape' ? newShape(page.indice, 0, 0, st.style) : newComment(page.indice, 0, 0, st.style)
+    const w = base.type === 'text' ? base.width : base.type === 'shape' ? base.w : 18
     const id = st.addElement({ ...base, x: (page.larghezza - w) / 2, y: page.altezza / 2 - 20 })
     st.setTool('select')
     st.select(id)
@@ -283,7 +288,13 @@ export function EditorScreen() {
             tools={tools}
             value={s.tool}
             onChange={s.setTool}
-            onActivate={(v, viaKeyboard) => viaKeyboard && (v === 'text' || v === 'shape') && insertAtCenter(v)}
+            onActivate={(v, viaKeyboard) => {
+              // Da tastiera si inserisce subito al centro della pagina; il gruppo di strumenti non cambia
+              // strumento, altrimenti deselezionerebbe l'elemento appena creato.
+              if (!viaKeyboard || (v !== 'text' && v !== 'shape' && v !== 'comment')) return false
+              insertAtCenter(v)
+              return true
+            }}
           />
           <IconButton label="Inserisci immagine" shortcut="I" icon={<ImagePlus />} onClick={() => imageInput.current?.click()} />
           <ToolbarSeparator />
