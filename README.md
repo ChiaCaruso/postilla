@@ -67,7 +67,7 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 Serve **Node.js 20** o successivo.
 
 ```bash
-git clone <indirizzo-del-repository> postilla
+git clone https://github.com/ChiaCaruso/postilla.git
 cd postilla
 npm install
 npm run dev
