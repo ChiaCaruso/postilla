@@ -3,7 +3,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { AnnotationElement, Documento, Element, FontFamily, Id, ShapeElement } from './model'
 
 export type Screen = 'upload' | 'editor' | 'processing' | 'done'
-export type ToolId = 'select' | 'hand' | 'text' | 'shape' | 'draw' | 'marker' | 'annotate'
+export type ToolId = 'select' | 'hand' | 'text' | 'shape' | 'draw' | 'marker' | 'annotate' | 'comment'
 export type ShapeKind = ShapeElement['shape']
 export type AnnotationStyle = AnnotationElement['style']
 
@@ -27,6 +27,7 @@ export interface Style {
   annotStyle: AnnotationStyle
   highlightColor: string
   lineColor: string
+  commentColor: string
   opacity: number
 }
 
@@ -112,6 +113,7 @@ export const DEFAULT_STYLE: Style = {
   annotStyle: 'highlight',
   highlightColor: '#ffe066',
   lineColor: '#c02a2a',
+  commentColor: '#ffe066',
   opacity: 1,
 }
 

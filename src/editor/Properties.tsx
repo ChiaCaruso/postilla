@@ -1,7 +1,8 @@
+import { useEffect, useRef } from 'react'
 // Barra delle proprietà: mostra le proprietà dell'elemento selezionato,
 // oppure quelle che avranno i nuovi elementi dello strumento attivo.
 import * as TG from '@radix-ui/react-toggle-group'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Circle, Highlighter, Italic, Minus, Square, Strikethrough, Trash2, Underline } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Circle, Highlighter, Italic, Minus, Square, Strikethrough, Trash2, Underline, Waves } from 'lucide-react'
 import { PropertyBar, PropertyGroup } from '../ui/PropertyBar'
 import { Select } from '../ui/Select'
 import { ColorPicker, HIGHLIGHT_SWATCHES } from '../ui/ColorPicker'
@@ -70,6 +71,7 @@ const ANNOTATIONS: Array<{ value: AnnotationStyle; label: string; icon: React.Re
   { value: 'highlight', label: 'Evidenzia', icon: <Highlighter /> },
   { value: 'underline', label: 'Sottolinea', icon: <Underline /> },
   { value: 'strike', label: 'Barra', icon: <Strikethrough /> },
+  { value: 'squiggly', label: 'Sottolinea con onda', icon: <Waves /> },
 ]
 
 function OpacityControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -113,6 +115,12 @@ export function Properties() {
             <Slider label="Spessore" value={el.strokeWidth} onChange={(n) => edit({ strokeWidth: n }, { markerWidth: n })} min={4} max={40} unit=" pt" />
           </PropertyGroup>
         )}
+        {el.type === 'comment' && (
+          <PropertyGroup>
+            <CommentField id={el.id} value={el.text} onChange={(t) => updateElement(el.id, { text: t })} />
+            <ColorPicker label="Colore dell'icona" value={el.color} swatches={HIGHLIGHT_SWATCHES} onChange={(c) => c && edit({ color: c }, { commentColor: c })} />
+          </PropertyGroup>
+        )}
         {el.type === 'annotation' && (
           <PropertyGroup>
             <ColorPicker
@@ -123,7 +131,8 @@ export function Properties() {
             />
           </PropertyGroup>
         )}
-        <OpacityControl value={el.opacity} onChange={(o) => edit({ opacity: o }, {})} />
+        {/* il commento è un'icona sempre piena: l'opacità non avrebbe effetto */}
+        {el.type !== 'comment' && <OpacityControl value={el.opacity} onChange={(o) => edit({ opacity: o }, {})} />}
         <PropertyGroup>
           <IconButton size="sm" label="Elimina elemento" shortcut="Canc" icon={<Trash2 />} onClick={() => removeElement(el.id)} />
         </PropertyGroup>
@@ -190,6 +199,16 @@ export function Properties() {
       </PropertyBar>
     )
   }
+  if (tool === 'comment') {
+    return (
+      <PropertyBar>
+        <PropertyGroup>
+          <ColorPicker label="Colore dell'icona" value={style.commentColor} swatches={HIGHLIGHT_SWATCHES} onChange={(c) => c && setStyle({ commentColor: c })} />
+        </PropertyGroup>
+        <Hint>Clicca sulla pagina dove vuoi lasciare il commento, poi scrivilo qui.</Hint>
+      </PropertyBar>
+    )
+  }
   if (tool === 'hand') {
     return (
       <PropertyBar>
@@ -212,6 +231,37 @@ export function Properties() {
     <PropertyBar>
       <Hint>Seleziona un elemento per modificarlo, oppure scegli uno strumento.</Hint>
     </PropertyBar>
+  )
+}
+
+/** Testo del commento: si scrive qui. Un commento nuovo (vuoto) riceve subito il focus. */
+function CommentField({ id, value, onChange }: { id: string; value: string; onChange: (t: string) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  const isNew = value === ''
+  // Il focus si dà dopo il clic che ha creato il commento: durante il clic il browser lo sposterebbe di nuovo.
+  useEffect(() => {
+    if (!isNew) return
+    const t = setTimeout(() => input.current?.focus(), 0)
+    return () => clearTimeout(t)
+    // solo quando cambia il commento selezionato
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+  return (
+    <label className="flex items-center gap-2">
+      <span className="text-xs text-text-muted">Commento</span>
+      <input
+        ref={input}
+        key={id}
+        type="text"
+        value={value}
+        placeholder="Scrivi il commento…"
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' || e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+        className="h-8 w-[min(360px,50vw)] rounded-sm border border-border-input bg-bg px-2 text-sm text-text placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      />
+    </label>
   )
 }
 

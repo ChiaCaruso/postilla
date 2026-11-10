@@ -1,8 +1,8 @@
 // Ponte tra il modello (store) e gli oggetti Fabric che l'utente sposta sulla pagina.
 // Fabric lavora in punti PDF: lo zoom è solo lo zoom del canvas Fabric.
 import { Ellipse, FabricImage, FabricObject, Path, Rect, Textbox } from 'fabric'
-import type { AnnotationElement, DrawingElement, Element, ImageElement, ShapeElement, TextElement } from '../model'
-import { annotationBars } from '../pdf/textRuns'
+import { COMMENT_ICON, type AnnotationElement, type CommentElement, type DrawingElement, type Element, type ImageElement, type ShapeElement, type TextElement } from '../model'
+import { annotationShapes } from '../pdf/textRuns'
 import { cssFamily } from '../pdf/fonts'
 import { TEXT_METRICS } from '../pdf/metrics'
 import tokens from '../../docs/design/tokens.json'
@@ -79,11 +79,33 @@ const drawingProps = (el: DrawingElement) => ({
 
 /** Tracciato delle barre di un'annotazione, relativo al proprio riquadro, e spostamento di quel riquadro. */
 function annotationGeometry(el: AnnotationElement) {
-  const bars = el.rects.map((r) => annotationBars(el.style, r))
-  const minX = Math.min(...bars.map((b) => b.x))
-  const minY = Math.min(...bars.map((b) => b.y))
-  const d = bars.map((b) => `M ${b.x - minX} ${b.y - minY} h ${b.w} v ${b.h} h ${-b.w} Z`).join(' ')
+  const polys = el.rects.flatMap((r) => annotationShapes(el.style, r))
+  const pts = polys.flat()
+  const minX = Math.min(...pts.map((p) => p[0]))
+  const minY = Math.min(...pts.map((p) => p[1]))
+  const d = polys
+    .map((poly) => poly.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x - minX} ${y - minY}`).join(' ') + ' Z')
+    .join(' ')
   return { d, dx: minX, dy: minY }
+}
+
+const COMMENT_PATH = COMMENT_ICON.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ') + ' Z'
+
+function commentProps(el: CommentElement) {
+  return {
+    left: el.x,
+    top: el.y,
+    originX: 'left' as const,
+    originY: 'top' as const,
+    angle: 0,
+    opacity: 1,
+    fill: el.color,
+    stroke: tokens.color.text,
+    strokeWidth: 0.75,
+    strokeLineJoin: 'round' as const,
+    hasControls: false, // si sposta, non si ridimensiona
+    hoverCursor: 'move',
+  }
 }
 
 const annotationSig = (el: AnnotationElement) => `${el.style}|${JSON.stringify(el.rects)}`
@@ -135,6 +157,10 @@ export async function createObject(el: Element): Promise<FabricObject> {
       // Il tracciato parte da (0, 0): riportiamo l'oggetto nella posizione salvata.
       o.set({ left: el.x, top: el.y })
       break
+    case 'comment':
+      o = new Path(COMMENT_PATH, commentProps(el))
+      o.set({ left: el.x, top: el.y })
+      break
     case 'annotation': {
       const props = annotationProps(el)
       o = new Path(annotationGeometry(el).d, props)
@@ -175,6 +201,9 @@ export function applyToObject(el: Element, o: FabricObject) {
     case 'annotation':
       o.set(annotationProps(el))
       break
+    case 'comment':
+      o.set(commentProps(el))
+      break
   }
   o.setCoords()
 }
@@ -201,6 +230,8 @@ export function readFromObject(o: FabricObject, el: Element): Partial<Element> {
       return { ...base, scaleX: o.scaleX, scaleY: o.scaleY }
     case 'annotation':
       return {}
+    case 'comment':
+      return { x: round(o.left), y: round(o.top) }
     case 'shape': {
       if (el.shape === 'ellipse') {
         const e = o as Ellipse

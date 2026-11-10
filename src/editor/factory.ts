@@ -1,5 +1,5 @@
 // Elementi nuovi, con i valori di stile correnti.
-import type { ImageElement, ShapeElement, TextElement } from '../model'
+import type { CommentElement, ImageElement, ShapeElement, TextElement } from '../model'
 import type { Style } from '../store'
 
 type New<T> = Omit<T, 'id' | 'z'>
@@ -42,3 +42,7 @@ export function newImage(page: number, pageW: number, pageH: number, src: string
   }
 }
 
+
+export function newComment(page: number, x: number, y: number, s: Style): New<CommentElement> {
+  return { type: 'comment', page, x, y, rotation: 0, opacity: 1, text: '', color: s.commentColor }
+}

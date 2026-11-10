@@ -4,7 +4,7 @@ import type { RenderTask } from 'pdfjs-dist'
 import { useStore } from '../store'
 import type { Element, Pagina } from '../model'
 import { applyToObject, createObject, drawingFromPath, idOf, needsRecreate, readFromObject } from './fabricBridge'
-import { newShape, newText } from './factory'
+import { newComment, newShape, newText } from './factory'
 import { cssFamily, isFontLoaded, loadFontFace } from '../pdf/fonts'
 import { boundRects, getTextRuns, overlaps, selectRuns } from '../pdf/textRuns'
 import tokens from '../../docs/design/tokens.json'
@@ -110,9 +110,15 @@ export function PageView({ page, scale }: Props) {
         canvas.add(dragRect)
         return
       }
-      if (opt.target || (tool !== 'text' && tool !== 'shape')) return
+      if (opt.target || (tool !== 'text' && tool !== 'shape' && tool !== 'comment')) return
       const p = opt.scenePoint
-      const id = s.addElement(tool === 'text' ? newText(page.indice, p.x, p.y, s.style) : newShape(page.indice, p.x, p.y, s.style))
+      const id = s.addElement(
+        tool === 'text'
+          ? newText(page.indice, p.x, p.y, s.style)
+          : tool === 'shape'
+            ? newShape(page.indice, p.x, p.y, s.style)
+            : newComment(page.indice, p.x, p.y, s.style),
+      )
       s.setTool('select')
       s.select(id)
       if (tool === 'text') s.requestEdit(id)
@@ -251,7 +257,7 @@ export function PageView({ page, scale }: Props) {
     }
     // Annotando, i clic passano "attraverso" gli elementi già presenti.
     c.skipTargetFind = tool === 'annotate'
-    c.defaultCursor = tool === 'text' || tool === 'annotate' ? 'text' : tool === 'shape' ? 'crosshair' : 'default'
+    c.defaultCursor = tool === 'text' || tool === 'annotate' ? 'text' : tool === 'shape' || tool === 'comment' ? 'crosshair' : 'default'
     c.forEachObject((o) => {
       const id = idOf(o)
       const isAnnotation = useStore.getState().elements.find((e) => e.id === id)?.type === 'annotation'

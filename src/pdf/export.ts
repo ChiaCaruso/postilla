@@ -19,14 +19,19 @@ import {
   fill,
   setFillingRgbColor,
   setGraphicsState,
+  setStrokingRgbColor,
+  setLineWidth,
+  setLineJoin,
+  LineJoinStyle,
+  fillAndStroke,
   type PDFFont,
   type PDFImage,
   type PDFPage,
 } from '@cantoo/pdf-lib'
 import fontkit from '@cantoo/fontkit'
-import type { AnnotationElement, Documento, DrawingElement, Element, ImageElement, Matrix, ShapeElement, TextElement } from '../model'
+import { COMMENT_ICON, type AnnotationElement, type CommentElement, type Documento, type DrawingElement, type Element, type ImageElement, type Matrix, type ShapeElement, type TextElement } from '../model'
 import { apply, elementToPdf } from './geometry'
-import { annotationBars } from './textRuns'
+import { annotationShapes } from './textRuns'
 import { fontBytes, variantOf } from './fonts'
 import { TEXT_METRICS, scalePath } from './metrics'
 
@@ -108,9 +113,11 @@ export async function exportPdf(doc: Documento, elements: Element[]): Promise<Ex
   // Le annotazioni non sono contenuto della pagina: diventano oggetti annotazione del PDF.
   for (const el of sorted) {
     if (el.type === 'annotation') addAnnotation(pdf, pdf.getPage(el.page), el, doc.pagine[el.page].toPdf)
+    // un commento senza testo non serve a nessuno: non finisce nel PDF
+    if (el.type === 'comment' && el.text.trim()) addComment(pdf, pdf.getPage(el.page), el, doc.pagine[el.page].toPdf)
   }
   for (const el of sorted) {
-    if (el.type === 'annotation') continue
+    if (el.type === 'annotation' || el.type === 'comment') continue
     const page = pdf.getPage(el.page)
     if (!isolated.has(el.page)) {
       isolateOriginalContent(pdf, page)
@@ -197,6 +204,32 @@ function drawDrawing(page: PDFPage, el: DrawingElement) {
  * si può selezionare, modificare o togliere in Acrobat e simili. Ha anche il suo aspetto disegnato,
  * così si vede uguale in tutti i lettori.
  */
+/** Commento come annotazione «nota» (Text): l'icona è disegnata, il testo lo mostrano i lettori al clic. */
+function addComment(pdf: PDFDocument, page: PDFPage, el: CommentElement, toPdf: Matrix) {
+  const ctx = pdf.context
+  const pts = COMMENT_ICON.map(([x, y]) => apply(toPdf, el.x + x, el.y + y))
+  const xs = pts.map((p) => p[0])
+  const ys = pts.map((p) => p[1])
+  const rect = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+  const fillC = color(el.color)
+  const ops = [setFillingRgbColor(fillC.red, fillC.green, fillC.blue), setStrokingRgbColor(0.08, 0.09, 0.11), setLineWidth(0.75), setLineJoin(LineJoinStyle.Round)]
+  pts.forEach((p, i) => ops.push(i === 0 ? moveTo(...p) : lineTo(...p)))
+  ops.push(closePath(), fillAndStroke())
+  const appearance = ctx.register(ctx.formXObject(ops, { BBox: rect }))
+  const annot = ctx.obj({
+    Type: 'Annot',
+    Subtype: 'Text',
+    Name: 'Comment',
+    Rect: rect,
+    C: [fillC.red, fillC.green, fillC.blue],
+    F: 4, // stampabile
+    Contents: PDFHexString.fromText(el.text),
+    P: page.ref,
+    AP: { N: appearance },
+  })
+  page.node.addAnnot(ctx.register(annot))
+}
+
 function addAnnotation(pdf: PDFDocument, page: PDFPage, el: AnnotationElement, toPdf: Matrix) {
   const ctx = pdf.context
   const abs = el.rects.map((r) => ({ x: el.x + r.x, y: el.y + r.y, w: r.w, h: r.h }))
@@ -211,15 +244,15 @@ function addAnnotation(pdf: PDFDocument, page: PDFPage, el: AnnotationElement, t
   const c = color(el.color)
   const [r, g, b] = [c.red, c.green, c.blue]
   const ops = [setGraphicsState('GS0'), setFillingRgbColor(r, g, b)]
-  for (const bar of abs.map((a) => annotationBars(el.style, a))) {
-    const [p1, p2, p3, p4] = corners(bar)
-    ops.push(moveTo(...p1), lineTo(...p2), lineTo(...p4), lineTo(...p3), closePath())
+  for (const poly of abs.flatMap((a) => annotationShapes(el.style, a))) {
+    poly.forEach(([x, y], i) => ops.push(i === 0 ? moveTo(...apply(toPdf, x, y)) : lineTo(...apply(toPdf, x, y))))
+    ops.push(closePath())
   }
   ops.push(fill())
   const gs = ctx.obj({ Type: 'ExtGState', ca: el.opacity, CA: el.opacity, ...(el.style === 'highlight' ? { BM: 'Multiply' } : {}) })
   const appearance = ctx.register(ctx.formXObject(ops, { BBox: rect, Resources: { ExtGState: { GS0: gs } } }))
 
-  const subtype = el.style === 'highlight' ? 'Highlight' : el.style === 'underline' ? 'Underline' : 'StrikeOut'
+  const subtype = { highlight: 'Highlight', underline: 'Underline', strike: 'StrikeOut', squiggly: 'Squiggly' }[el.style]
   const annot = ctx.obj({
     Type: 'Annot',
     Subtype: subtype,

@@ -108,7 +108,7 @@ export interface Box {
  */
 export interface AnnotationElement extends Base {
   type: 'annotation'
-  style: 'highlight' | 'underline' | 'strike'
+  style: 'highlight' | 'underline' | 'strike' | 'squiggly'
   color: string
   /** Un'area per ogni pezzo di riga coperto. */
   rects: Box[]
@@ -116,7 +116,20 @@ export interface AnnotationElement extends Base {
   text: string
 }
 
-export type Element = TextElement | ImageElement | ShapeElement | DrawingElement | AnnotationElement
+/**
+ * Commento: un'icona sulla pagina con un testo. Nel PDF è un'annotazione «nota» (Text):
+ * i lettori mostrano il testo cliccando l'icona. x, y = angolo in alto a sinistra dell'icona.
+ */
+export interface CommentElement extends Base {
+  type: 'comment'
+  text: string
+  color: string
+}
+
+/** Icona del commento, in punti, relativa al suo angolo: un fumetto. Uguale nell'editor e nel PDF. */
+export const COMMENT_ICON: Array<[number, number]> = [[0, 0], [18, 0], [18, 13], [9, 13], [4, 18], [4, 13], [0, 13]]
+
+export type Element = TextElement | ImageElement | ShapeElement | DrawingElement | AnnotationElement | CommentElement
 export type ElementType = Element['type']
 
 export type ErroreApertura = 'non_pdf' | 'troppo_grande' | 'serve_password' | 'password_errata' | 'danneggiato'
