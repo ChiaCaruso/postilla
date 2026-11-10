@@ -1,31 +1,55 @@
-# Logs
-logs
+# ─── Dipendenze ───────────────────────────────────────────────
+node_modules/
+
+# ─── Build ────────────────────────────────────────────────────
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# ─── File generati (si ricreano da soli) ──────────────────────
+# copiati da node_modules/pdfjs-dist da `npm run dev` / `npm run build`
+public/pdfjs/
+
+# ─── Test ─────────────────────────────────────────────────────
+test-results/
+e2e-report/
+playwright-report/
+blob-report/
+playwright/.cache/
+# PDF scaricati durante le prove a mano
+samples/out/
+
+# ─── Ambiente e segreti (l'app oggi non ne usa, ma non devono finire qui) ──
+.env
+.env.*
+!.env.example
+*.local
+
+# ─── Log ──────────────────────────────────────────────────────
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ─── Cache ────────────────────────────────────────────────────
+.cache/
+.eslintcache
 
-# Editor directories and files
+# ─── Python (scripts/brand-assets.py) ─────────────────────────
+__pycache__/
+*.pyc
+.venv/
+
+# ─── Editor e sistema operativo ───────────────────────────────
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
+.idea/
 *.sw?
+.DS_Store
+Thumbs.db
 
-# strumenti locali
+# ─── Strumenti locali (automazione del browser, assistente) ───
 .playwright-mcp/
-samples/out/
-public/pdfjs/
-e2e-report/
-test-results/
+.claude/settings.local.json
