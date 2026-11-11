@@ -10,8 +10,8 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
-![Test](https://img.shields.io/badge/test%20e2e-87%20verdi-2ea44f?logo=playwright&logoColor=white)
-![Versione](https://img.shields.io/badge/versione-0.4.0-555)
+![Test](https://img.shields.io/badge/test%20e2e-88%20verdi-2ea44f?logo=playwright&logoColor=white)
+![Versione](https://img.shields.io/badge/versione-0.5.0-555)
 ![Licenza](https://img.shields.io/badge/licenza-MIT-blue)
 
 </div>
@@ -119,7 +119,7 @@ npx playwright install chromium   # la prima volta
 npm test
 ```
 
-87 test su tutti i flussi: apertura (anche protetti, danneggiati, oltre 100 MB, trascinamento), testo, immagini, forme, annotazioni, commenti, annulla, copia/incolla, mano, senza rete, larghezza mobile.
+88 test su tutti i flussi: apertura (anche protetti, danneggiati, oltre 100 MB, trascinamento), testo, immagini, forme, annotazioni, commenti, annulla, copia/incolla, mano, senza rete, larghezza mobile.
 Ogni test fallisce anche se compare un errore in console, e le schermate principali passano un controllo di accessibilità (axe).
 
 Altri test controllano il motore che toglie il testo esistente su PDF di origini diverse (pdf-lib, stampati da Chrome, pagine ruotate): il testo tolto sparisce davvero e il resto della pagina non si sposta di un centesimo di punto.
