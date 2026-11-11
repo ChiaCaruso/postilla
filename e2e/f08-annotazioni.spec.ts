@@ -34,11 +34,12 @@ test.describe('F08 annotare il testo', () => {
     await openPdf(page, 'documento.pdf')
     await page.getByRole('radio', { name: 'Evidenzia, sottolinea o barra il testo', exact: true }).click()
     await drag(page, [LINE.x - 4, LINE.y - 8], [LINE.x + 125, LINE.y + 2])
+    // l'evidenziazione nasce dopo la lettura del testo della pagina: si aspetta che compaia
+    await expect(page.getByRole('button', { name: /Evidenziato: Verbale/ })).toBeVisible()
     const [el] = await elements(page)
     expect(el).toMatchObject({ type: 'annotation', style: 'highlight' })
     expect(LINE.text.startsWith(el.text as string)).toBe(true)
     expect((el.text as string).length).toBeGreaterThan(10)
-    await expect(page.getByRole('button', { name: /Evidenziato: Verbale/ })).toBeVisible()
 
     const { file, score } = await sameAfterExport(page, info)
     expect(score, `${score.toFixed(1)}% dei pixel coincide`).toBeGreaterThanOrEqual(95)

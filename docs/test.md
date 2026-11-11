@@ -3,7 +3,7 @@
 Build: `ee1f68f` (ramo `build/editor`; piano scritto su `da7705f`)  Data: 2026-11-09  Ambiente: locale (`npm run dev`), PDF di prova in `samples/`
 
 Legenda colonna "auto": **e2e** = test Playwright in `e2e/`, **manuale** = provato a mano, **n/a** = non si applica.
-Esecuzione: `npm test` (Playwright avvia da solo il server di sviluppo). Esito finale: **75 test, 75 passati** (39 della prima tornata, 10 della seconda, 19 dei casi limite, 7 della terza tornata).
+Esecuzione: `npm test` (Playwright avvia da solo il server di sviluppo). Esito finale: **90 test, 90 passati** (39 della prima tornata, 10 della seconda, 19 dei casi limite, 7 della terza tornata, 15 per la modifica del testo esistente e i font compatibili).
 
 Casi della lista standard che **non si applicano** a questa app, e perché:
 - utente di un altro account, sessione scaduta: non ci sono account né server;
@@ -157,6 +157,7 @@ Non si applicano: rete lenta, sessioni, altri utenti, fusi orari (come sopra).
 | F04-E1 | annulla | un Ctrl Z | spariscono testo nuovo e riquadro insieme | e2e | ✅ passa |
 | F04-E2 | clic a vuoto | clic dove non c'è testo | avviso «Clicca su una riga di testo del PDF.» | e2e | ✅ passa |
 | F04-N1 | senza testo | scansione.pdf | strumento disattivato | e2e | ✅ passa |
+| F04-H4 | larghezza | riscrivere la stessa riga (Helvetica → Arimo, Georgia → Gelasio) | stessa larghezza dell'originale, scarto < 1 % | e2e | ✅ passa |
 
 ## Non costruiti (nessun test finché non esistono)
 

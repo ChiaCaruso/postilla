@@ -2,11 +2,34 @@
 // e all'export (vengono incorporati nel PDF), così le righe vanno a capo negli stessi punti.
 import type { FontFamily } from '../model'
 
-export const FONT_FAMILIES: Array<{ value: FontFamily; label: string }> = [
-  { value: 'NotoSans', label: 'Noto Sans' },
-  { value: 'NotoSerif', label: 'Noto Serif' },
-  { value: 'NotoSansMono', label: 'Noto Sans Mono' },
+export interface FontInfo {
+  value: FontFamily
+  label: string
+  /** font di base: precaricati all'avvio. Gli altri si scaricano quando servono. */
+  base: boolean
+  italic: boolean
+}
+
+/**
+ * Noto: copertura ampia di lingue e simboli. Gli altri: stesse larghezze dei font d'ufficio più comuni
+ * (Google Fonts, licenza OFL), così una riga riscritta con «Modifica testo» occupa lo stesso spazio.
+ */
+export const FONTS: FontInfo[] = [
+  { value: 'NotoSans', label: 'Noto Sans', base: true, italic: true },
+  { value: 'NotoSerif', label: 'Noto Serif', base: true, italic: true },
+  { value: 'NotoSansMono', label: 'Noto Sans Mono', base: true, italic: false },
+  { value: 'Arimo', label: 'Arimo (come Arial, Helvetica)', base: false, italic: true },
+  { value: 'Tinos', label: 'Tinos (come Times New Roman)', base: false, italic: true },
+  { value: 'Cousine', label: 'Cousine (come Courier New)', base: false, italic: true },
+  { value: 'Carlito', label: 'Carlito (come Calibri)', base: false, italic: true },
+  { value: 'Caladea', label: 'Caladea (come Cambria)', base: false, italic: true },
+  { value: 'Gelasio', label: 'Gelasio (come Georgia)', base: false, italic: true },
 ]
+
+/** Per i menu: valore ed etichetta. */
+export const FONT_FAMILIES = FONTS.map(({ value, label }) => ({ value, label }))
+
+export const hasItalic = (f: FontFamily) => FONTS.find((x) => x.value === f)?.italic ?? false
 
 /** Nome CSS usato dall'editor. */
 export const cssFamily = (f: FontFamily) => `pdf-${f}`
@@ -14,7 +37,7 @@ export const cssFamily = (f: FontFamily) => `pdf-${f}`
 type Variant = 'Regular' | 'Bold' | 'Italic' | 'BoldItalic'
 
 export function variantOf(f: FontFamily, bold: boolean, italic: boolean): Variant {
-  if (f === 'NotoSansMono') return bold ? 'Bold' : 'Regular' // il mono non ha corsivo
+  if (!hasItalic(f)) return bold ? 'Bold' : 'Regular' // senza corsivo (es. Noto Sans Mono)
   if (bold && italic) return 'BoldItalic'
   return bold ? 'Bold' : italic ? 'Italic' : 'Regular'
 }
@@ -68,10 +91,13 @@ export function fontBytes(f: FontFamily, bold: boolean, italic: boolean): Promis
   return p
 }
 
-/** Scarica in memoria tutte le varianti, quando il browser è libero: dopo, editor ed export non hanno più bisogno della rete. */
+/**
+ * Scarica in memoria tutte le varianti dei font di base, quando il browser è libero: dopo, editor ed export
+ * non hanno più bisogno della rete. Gli altri font si scaricano la prima volta che servono.
+ */
 export function prefetchAllFonts() {
   const run = () => {
-    for (const { value } of FONT_FAMILIES) {
+    for (const { value } of FONTS.filter((f) => f.base)) {
       for (const bold of [false, true]) for (const italic of [false, true]) void fontBytes(value, bold, italic).catch(() => {})
     }
   }

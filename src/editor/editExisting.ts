@@ -5,7 +5,7 @@ import type { Documento, EraseElement, FontFamily, TextElement } from '../model'
 import { getTextRuns, type TextRun } from '../pdf/textRuns'
 import { analyzePage, dominantFont, glyphsIn, type PageText } from '../pdf/textEdit'
 import { loadPdf } from '../pdf/export'
-import { loadFontFace } from '../pdf/fonts'
+import { hasItalic, loadFontFace } from '../pdf/fonts'
 import { TEXT_METRICS } from '../pdf/metrics'
 
 type New<T> = Omit<T, 'id' | 'z'>
@@ -62,16 +62,30 @@ export function sampleColors(bitmap: HTMLCanvasElement, pageWidth: number, box: 
   }
 }
 
+/** Font d'ufficio → font incluso con le stesse larghezze dei caratteri. */
+const COMPATIBLE: Array<[RegExp, FontFamily]> = [
+  [/calibri|carlito/i, 'Carlito'],
+  [/cambria|caladea/i, 'Caladea'],
+  [/georgia|gelasio/i, 'Gelasio'],
+  [/courier|cousine|liberation ?mono/i, 'Cousine'],
+  [/times|tinos|liberation ?serif/i, 'Tinos'],
+  [/arial|helvetica|arimo|liberation ?sans/i, 'Arimo'],
+]
+
 /**
- * Font incluso più simile. Prima lo stile letto dal PDF (nome, peso, inclinazione, flag del font);
- * se non c'è, la famiglia che indica pdf.js.
+ * Font incluso più simile. Prima il font compatibile scelto dal nome del font originale (stesse larghezze:
+ * la riga riscritta occupa lo stesso spazio); poi Noto, scelto in base allo stile letto dal PDF o, in mancanza,
+ * alla famiglia che indica pdf.js.
  */
 function matchFont(run: TextRun, fromPdf: ReturnType<typeof dominantFont>) {
-  const family: FontFamily = fromPdf
-    ? fromPdf.mono ? 'NotoSansMono' : fromPdf.serif ? 'NotoSerif' : 'NotoSans'
-    : run.family === 'serif' ? 'NotoSerif' : run.family === 'monospace' ? 'NotoSansMono' : 'NotoSans'
+  const compatible = fromPdf && COMPATIBLE.find(([re]) => re.test(fromPdf.name))?.[1]
+  const family: FontFamily =
+    compatible ??
+    (fromPdf
+      ? fromPdf.mono ? 'NotoSansMono' : fromPdf.serif ? 'NotoSerif' : 'NotoSans'
+      : run.family === 'serif' ? 'NotoSerif' : run.family === 'monospace' ? 'NotoSansMono' : 'NotoSans')
   const bold = !!fromPdf?.bold
-  const italic = !!fromPdf?.italic && family !== 'NotoSansMono'
+  const italic = !!fromPdf?.italic && hasItalic(family)
   return { font: family, bold, italic }
 }
 

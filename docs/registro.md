@@ -57,6 +57,12 @@ Più difficile del previsto: riconoscere grassetto e corsivo. pdf.js non espone 
 
 Limiti: una riga alla volta; il testo che segue non si riallinea; font sostitutivo (il più simile tra quelli inclusi); testo dentro gruppi grafici, font Type3 e codifiche non Identity non modificabili (l'editor lo dice).
 
+## Font compatibili (2026-11-11, ramo `feature/font-compatibili`)
+
+Aggiunti sei font di Google Fonts (licenza OFL) con le stesse larghezze dei font d'ufficio: Arimo (Arial/Helvetica), Tinos (Times New Roman), Cousine (Courier New), Carlito (Calibri), Caladea (Cambria), Gelasio (Georgia). Scaricati una volta e inclusi nell'app (`scripts/fetch-compatible-fonts.py`): nessun contatto con Google durante l'uso. Arimo e Gelasio esistono solo come font variabili: se ne ricavano le varianti statiche con fontTools. Verificato: le larghezze di Arimo, Tinos e Cousine coincidono esattamente con le misure ufficiali di Helvetica, Times e Courier.
+
+«Modifica testo» sceglie il font compatibile dal nome del font originale; altrimenti Noto. Test: una riga riscritta occupa la stessa larghezza dell'originale (scarto < 1 %) su Helvetica e Georgia. I font di base (Noto) restano precaricati; gli altri si scaricano la prima volta che servono.
+
 ## Non ancora fatto (in ordine)
 
 1. Prototipo della modifica del testo esistente (il rischio maggiore, vedi architettura.md)
