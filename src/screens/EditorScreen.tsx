@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Brush, Download, Hand, Highlighter, ImagePlus, Layers, MousePointer2, Redo2, Shapes, Square, Circle, Minus, MessageSquare, Strikethrough, Type, PenLine, TextSelect, Underline, Undo2, Waves, X } from 'lucide-react'
+import { Brush, Download, Hand, Highlighter, ImagePlus, Layers, MousePointer2, Redo2, Shapes, Square, Circle, Minus, Eraser, MessageSquare, Strikethrough, Type, PenLine, TextCursorInput, TextSelect, Underline, Undo2, Waves, X } from 'lucide-react'
 import { Toolbar, ToolbarSeparator, ToolPicker, type Tool } from '../ui/ToolPicker'
 import { IconButton } from '../ui/IconButton'
 import { Button } from '../ui/Button'
@@ -23,6 +23,13 @@ function toolsFor(haTesto: boolean): Tool<ToolId>[] {
     { value: 'select', label: 'Seleziona e sposta', icon: <MousePointer2 />, shortcut: 'V' },
     { value: 'hand', label: 'Mano: trascina per scorrere', icon: <Hand />, shortcut: 'H' },
     { value: 'text', label: 'Testo', icon: <Type />, shortcut: 'T' },
+    {
+      value: 'edittext',
+      label: 'Modifica il testo del PDF',
+      icon: <TextCursorInput />,
+      shortcut: 'M',
+      disabledReason: haTesto ? undefined : NO_TEXT,
+    },
     { value: 'shape', label: 'Forma', icon: <Shapes />, shortcut: 'R' },
     { value: 'draw', label: 'Penna', icon: <Brush />, shortcut: 'P' },
     { value: 'marker', label: 'Evidenziatore a mano libera', icon: <Highlighter />, shortcut: 'E' },
@@ -36,7 +43,7 @@ function toolsFor(haTesto: boolean): Tool<ToolId>[] {
     { value: 'comment', label: 'Commento', icon: <MessageSquare />, shortcut: 'C' },
   ]
 }
-const SHORTCUTS: Record<string, ToolId> = { v: 'select', h: 'hand', t: 'text', r: 'shape', p: 'draw', e: 'marker', a: 'annotate', c: 'comment' }
+const SHORTCUTS: Record<string, ToolId> = { v: 'select', h: 'hand', t: 'text', m: 'edittext', r: 'shape', p: 'draw', e: 'marker', a: 'annotate', c: 'comment' }
 
 function describe(el: Element): { title: string; icon: React.ReactNode } {
   switch (el.type) {
@@ -54,6 +61,8 @@ function describe(el: Element): { title: string; icon: React.ReactNode } {
           : { title: 'Linea', icon: <Minus /> }
     case 'comment':
       return { title: `Commento: ${el.text.replace(/\s+/g, ' ').trim() || '(vuoto)'}`, icon: <MessageSquare /> }
+    case 'erase':
+      return { title: `Testo originale tolto: ${el.text}`, icon: <Eraser /> }
     case 'annotation': {
       const what = { highlight: 'Evidenziato', underline: 'Sottolineato', strike: 'Barrato', squiggly: 'Sottolineato con onda' }[el.style]
       const icon = { highlight: <TextSelect />, underline: <Underline />, strike: <Strikethrough />, squiggly: <Waves /> }[el.style]
@@ -221,7 +230,7 @@ export function EditorScreen() {
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
         e.preventDefault()
         st.removeElement(sel.id)
-      } else if (e.key.startsWith('Arrow') && sel && sel.type !== 'annotation') {
+      } else if (e.key.startsWith('Arrow') && sel && sel.type !== 'annotation' && sel.type !== 'erase') {
         e.preventDefault()
         const d = e.shiftKey ? 10 : 1
         const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0
@@ -232,7 +241,7 @@ export function EditorScreen() {
         st.setTool('select')
       } else if (!e.altKey && SHORTCUTS[e.key.toLowerCase()]) {
         const t = SHORTCUTS[e.key.toLowerCase()]
-        if (t !== 'annotate' || st.doc?.haTesto) st.setTool(t)
+        if ((t !== 'annotate' && t !== 'edittext') || st.doc?.haTesto) st.setTool(t)
       } else if (!e.altKey && e.key.toLowerCase() === 'i') {
         imageInput.current?.click()
       }
@@ -332,7 +341,7 @@ export function EditorScreen() {
       )}
       {s.notice && (
         <div className="px-3 pt-3">
-          <Banner tone="info" title="Non è stato possibile annotare" onDismiss={() => s.setNotice(null)}>{s.notice}</Banner>
+          <Banner tone="info" title={s.notice.title} onDismiss={() => s.setNotice(null)}>{s.notice.text}</Banner>
         </div>
       )}
       {s.exportError && (

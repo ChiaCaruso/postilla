@@ -10,7 +10,7 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
-![Test](https://img.shields.io/badge/test%20e2e-75%20verdi-2ea44f?logo=playwright&logoColor=white)
+![Test](https://img.shields.io/badge/test%20e2e-87%20verdi-2ea44f?logo=playwright&logoColor=white)
 ![Versione](https://img.shields.io/badge/versione-0.4.0-555)
 ![Licenza](https://img.shields.io/badge/licenza-MIT-blue)
 
@@ -46,6 +46,7 @@ Scrivi, evidenzia, commenta e disegna sui PDF, poi salvane una copia.<br />
 | | |
 | --- | --- |
 | **Testo** | tre font incorporati (Noto Sans, Serif, Mono), dimensione, colore, grassetto, corsivo, sottolineato, allineamento |
+| **Testo già presente** | clic su una riga del PDF e la si riscrive al suo posto, con font, corpo e colore più simili; al salvataggio il testo vecchio viene **tolto davvero** dal file (non coperto), e il resto della pagina non si muove |
 | **Immagini** | PNG e JPG; WebP e GIF convertiti; trasparenza conservata |
 | **Forme e disegno** | rettangolo, ellisse, linea; penna; evidenziatore a mano libera che lascia leggibile il testo |
 | **Annotare il testo** | evidenzia, sottolinea, sottolinea con onda, barra — trascinando sopra le righe o cliccando una parola |
@@ -84,7 +85,8 @@ Apri l'indirizzo che compare nel terminale (di solito `http://localhost:5173`) e
 | --- | --- |
 | <kbd>V</kbd> | seleziona e sposta |
 | <kbd>H</kbd> | mano (trascina per scorrere) |
-| <kbd>T</kbd> · <kbd>R</kbd> · <kbd>P</kbd> | testo · forma · penna |
+| <kbd>T</kbd> · <kbd>M</kbd> | testo nuovo · modifica il testo del PDF |
+| <kbd>R</kbd> · <kbd>P</kbd> | forma · penna |
 | <kbd>E</kbd> · <kbd>A</kbd> · <kbd>C</kbd> | evidenziatore a mano libera · annota il testo · commento |
 | <kbd>I</kbd> | inserisci immagine |
 | <kbd>Invio</kbd> su Testo, Forma o Commento | inserisce al centro della pagina, senza mouse |
@@ -117,8 +119,10 @@ npx playwright install chromium   # la prima volta
 npm test
 ```
 
-75 test end-to-end su tutti i flussi: apertura (anche protetti, danneggiati, oltre 100 MB, trascinamento), testo, immagini, forme, annotazioni, commenti, annulla, copia/incolla, mano, senza rete, larghezza mobile.
+87 test su tutti i flussi: apertura (anche protetti, danneggiati, oltre 100 MB, trascinamento), testo, immagini, forme, annotazioni, commenti, annulla, copia/incolla, mano, senza rete, larghezza mobile.
 Ogni test fallisce anche se compare un errore in console, e le schermate principali passano un controllo di accessibilità (axe).
+
+Altri test controllano il motore che toglie il testo esistente su PDF di origini diverse (pdf-lib, stampati da Chrome, pagine ruotate): il testo tolto sparisce davvero e il resto della pagina non si sposta di un centesimo di punto.
 
 Diversi test **confrontano l'editor con il PDF esportato**: salvano, riaprono il file e verificano che testo, forme e annotazioni siano nello stesso punto, anche su pagine ruotate.
 
@@ -178,7 +182,7 @@ docs/         architettura, design (token e componenti), registro dei lavori, pi
 
 ## Limiti noti
 
-- Non modifica il testo **già presente** nel PDF (si può coprire e riscrivere sopra).
+- **Testo già presente**: si modifica una riga alla volta; il testo che segue sulla riga non si riallinea; il font è il più simile tra quelli inclusi, non quello originale; il testo dentro gruppi grafici incapsulati o con font Type3 o codifiche particolari non si può modificare (l'editor lo dice).
 - Si annota solo il testo **orizzontale**; sul testo ruotato l'app lo dice e propone l'evidenziatore a mano libera.
 - Emoji e alcuni simboli non entrano nel PDF: l'editor li elenca prima del salvataggio.
 - File fino a **100 MB**; con file molto grandi il salvataggio può bloccare la pagina per qualche secondo.

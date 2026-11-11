@@ -11,7 +11,7 @@ Casi della lista standard che **non si applicano** a questa app, e perché:
 - rete lenta: dopo il caricamento della pagina non c'è traffico di rete, salvo i font (vedi X-E3, offline).
 
 Schermate: **S01** caricamento · **S02** password · **S03** editor · **S04** elaborazione · **S05** download.
-Flussi: **F01** testo · **F02** immagine · **F03** forme e penna · **F04** testo esistente (non costruito) · **F05** gestione degli elementi · **F06** PDF protetto · **F07** campi modulo (non costruito) · **F08** annotare il testo · **F09** commenti.
+Flussi: **F01** testo · **F02** immagine · **F03** forme e penna · **F04** testo esistente · **F05** gestione degli elementi · **F06** PDF protetto · **F07** campi modulo (non costruito) · **F08** annotare il testo · **F09** commenti.
 
 ## F01 Aggiungere testo e scaricare
 
@@ -143,6 +143,21 @@ Non si applicano: rete lenta, sessioni, altri utenti, fusi orari (come sopra).
 | F09-E2 | sposta, accenti, emoji | trascina il commento; testo «Sì, è così 👍» | si sposta; il testo arriva intero nel PDF | e2e | ✅ passa (falliva: prima lettera persa) |
 | F09-E3 | solo tastiera | Invio su Commento | commento al centro, campo già attivo | e2e | ✅ passa (falliva: selezione persa) |
 
+## F04 Modificare il testo esistente
+
+| caso | tipo | passi | atteso | auto | esito |
+| --- | --- | --- | --- | --- | --- |
+| M-U1 | motore | stringhe, numeri, array, immagini in linea | comandi letti tutti, nell'ordine | unit | ✅ passa |
+| M-U2 | motore | togliere una riga da documento.pdf (font standard) e da un PDF stampato da Chrome (font a due byte) | il testo sparisce; ogni altro pezzo di testo resta nello stesso punto (±0,01 pt) | unit | ✅ passa |
+| M-U3 | motore | togliere una parola in mezzo alla riga | il resto della riga finisce dove finiva | unit | ✅ passa |
+| M-U4 | motore | pagina Letter orizzontale | il testo si toglie | unit | ✅ passa |
+| F04-H1 | felice | M → clic su una riga → scrivi → Salva | nel PDF solo il testo nuovo, stessa linea di base (±0,6 pt), altre righe ferme | e2e | ✅ passa |
+| F04-H2 | stile | importo in grassetto rosso su sfondo giallo | Noto Serif grassetto, colore rosso, sfondo giallo; nel PDF il nuovo importo e il resto della riga | e2e | ✅ passa (falliva: grassetto non riconosciuto) |
+| F04-H3 | fedeltà | modifica e Salva | editor e PDF riaperto coincidono ≥ 95% | e2e | ✅ passa |
+| F04-E1 | annulla | un Ctrl Z | spariscono testo nuovo e riquadro insieme | e2e | ✅ passa |
+| F04-E2 | clic a vuoto | clic dove non c'è testo | avviso «Clicca su una riga di testo del PDF.» | e2e | ✅ passa |
+| F04-N1 | senza testo | scansione.pdf | strumento disattivato | e2e | ✅ passa |
+
 ## Non costruiti (nessun test finché non esistono)
 
-F04 modificare il testo esistente · F07 campi modulo · allegati e segnalibri · vista a pagina singola · annotare il testo ruotato.
+F07 campi modulo · allegati e segnalibri · vista a pagina singola · annotare il testo ruotato.

@@ -3,7 +3,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { AnnotationElement, Documento, Element, FontFamily, Id, ShapeElement } from './model'
 
 export type Screen = 'upload' | 'editor' | 'processing' | 'done'
-export type ToolId = 'select' | 'hand' | 'text' | 'shape' | 'draw' | 'marker' | 'annotate' | 'comment'
+export type ToolId = 'select' | 'hand' | 'text' | 'shape' | 'draw' | 'marker' | 'annotate' | 'comment' | 'edittext'
 export type ShapeKind = ShapeElement['shape']
 export type AnnotationStyle = AnnotationElement['style']
 
@@ -69,7 +69,7 @@ interface State {
   /** Testo appena creato da mettere subito in modifica (lo esegue la pagina che lo contiene). */
   editRequest: Id | null
   /** Messaggio informativo per l'utente (es. perché un'azione non ha avuto effetto). */
-  notice: string | null
+  notice: { title: string; text: string } | null
 
   openDocument: (doc: Documento, pdfjs: PDFDocumentProxy) => void
   closeDocument: () => void
@@ -79,6 +79,8 @@ interface State {
   setCurrentPage: (p: number) => void
   setStyle: (s: Partial<Style>) => void
   addElement: (el: NewElement) => Id
+  /** Più elementi insieme, in un solo passo di Annulla. */
+  addElements: (els: NewElement[]) => Id[]
   updateElement: (id: Id, patch: Partial<Element>, mode?: HistoryMode) => void
   removeElement: (id: Id) => void
   removeAll: () => void
@@ -91,7 +93,7 @@ interface State {
   setResult: (r: Result | null) => void
   setExportError: (e: string | null) => void
   requestEdit: (id: Id | null) => void
-  setNotice: (n: string | null) => void
+  setNotice: (n: { title: string; text: string } | null) => void
 }
 
 export const DEFAULT_STYLE: Style = {
@@ -177,6 +179,18 @@ export const useStore = create<State>()((set, get) => {
       commit([...get().elements, { ...el, id, z: nextZ(el.page) } as Element], 'push')
       return id
     },
+    addElements: (els) => {
+      const ids: Id[] = []
+      let all = get().elements
+      for (const el of els) {
+        const id = crypto.randomUUID()
+        const z = Math.max(0, ...all.filter((e) => e.page === el.page).map((e) => e.z)) + 1
+        all = [...all, { ...el, id, z } as Element]
+        ids.push(id)
+      }
+      commit(all, 'push')
+      return ids
+    },
     updateElement: (id, patch, mode = 'merge') => {
       const current = get().elements.find((e) => e.id === id) as Record<string, unknown> | undefined
       if (!current) return
@@ -234,8 +248,8 @@ export const useStore = create<State>()((set, get) => {
 
     copy: (id) => {
       const el = get().elements.find((e) => e.id === id)
-      // Le annotazioni sono legate al testo sotto: copiarle altrove non ha senso.
-      if (!el || el.type === 'annotation') return false
+      // Annotazioni e testo originale tolto sono legati al PDF sotto: copiarli altrove non ha senso.
+      if (!el || el.type === 'annotation' || el.type === 'erase') return false
       set({ clipboard: el })
       return true
     },

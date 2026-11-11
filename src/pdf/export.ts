@@ -32,6 +32,7 @@ import fontkit from '@cantoo/fontkit'
 import { COMMENT_ICON, type AnnotationElement, type CommentElement, type Documento, type DrawingElement, type Element, type ImageElement, type Matrix, type ShapeElement, type TextElement } from '../model'
 import { apply, elementToPdf } from './geometry'
 import { annotationShapes } from './textRuns'
+import { eraseText } from './textEdit'
 import { fontBytes, variantOf } from './fonts'
 import { TEXT_METRICS, scalePath } from './metrics'
 
@@ -63,7 +64,7 @@ function stripEncryptionLeftovers(pdf: PDFDocument) {
   }
 }
 
-async function load(doc: Documento): Promise<{ pdf: PDFDocument; wasEncrypted: boolean }> {
+export async function loadPdf(doc: Documento): Promise<{ pdf: PDFDocument; wasEncrypted: boolean }> {
   try {
     return { pdf: await PDFDocument.load(doc.bytes, { updateMetadata: false }), wasEncrypted: false }
   } catch (e) {
@@ -83,7 +84,7 @@ function isolateOriginalContent(pdf: PDFDocument, page: PDFPage) {
 }
 
 export async function exportPdf(doc: Documento, elements: Element[]): Promise<ExportResult> {
-  const { pdf, wasEncrypted } = await load(doc)
+  const { pdf, wasEncrypted } = await loadPdf(doc)
   if (elements.length === 0 && !wasEncrypted) return { bytes: doc.bytes, wasEncrypted }
   pdf.registerFontkit(fontkit)
 
@@ -108,6 +109,11 @@ export async function exportPdf(doc: Documento, elements: Element[]): Promise<Ex
     return i
   }
 
+  // Testo originale sostituito: i caratteri vengono tolti dal contenuto della pagina, prima di tutto il resto.
+  const erasures = new Map<number, Array<{ x: number; y: number; w: number; h: number }>>()
+  for (const el of elements) if (el.type === 'erase') erasures.set(el.page, [...(erasures.get(el.page) ?? []), { x: el.x, y: el.y, w: el.w, h: el.h }])
+  for (const [page, boxes] of erasures) eraseText(pdf, page, boxes, doc.pagine[page].toPdf)
+
   const isolated = new Set<number>()
   const sorted = [...elements].sort((a, b) => a.page - b.page || a.z - b.z)
   // Le annotazioni non sono contenuto della pagina: diventano oggetti annotazione del PDF.
@@ -117,7 +123,7 @@ export async function exportPdf(doc: Documento, elements: Element[]): Promise<Ex
     if (el.type === 'comment' && el.text.trim()) addComment(pdf, pdf.getPage(el.page), el, doc.pagine[el.page].toPdf)
   }
   for (const el of sorted) {
-    if (el.type === 'annotation' || el.type === 'comment') continue
+    if (el.type === 'annotation' || el.type === 'comment' || el.type === 'erase') continue
     const page = pdf.getPage(el.page)
     if (!isolated.has(el.page)) {
       isolateOriginalContent(pdf, page)

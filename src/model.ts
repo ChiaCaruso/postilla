@@ -129,7 +129,22 @@ export interface CommentElement extends Base {
 /** Icona del commento, in punti, relativa al suo angolo: un fumetto. Uguale nell'editor e nel PDF. */
 export const COMMENT_ICON: Array<[number, number]> = [[0, 0], [18, 0], [18, 13], [9, 13], [4, 18], [4, 13], [0, 13]]
 
-export type Element = TextElement | ImageElement | ShapeElement | DrawingElement | AnnotationElement | CommentElement
+/**
+ * Testo originale del PDF da togliere (strumento «Modifica testo»).
+ * Nell'editor è un riquadro del colore dello sfondo; all'export i caratteri sotto vengono tolti davvero
+ * dal PDF (non coperti), e il testo intorno resta dov'è. x, y, w, h: riquadro della riga.
+ */
+export interface EraseElement extends Base {
+  type: 'erase'
+  w: number
+  h: number
+  /** colore dello sfondo letto dalla pagina, per l'anteprima nell'editor */
+  color: string
+  /** testo originale tolto, per il pannello Elementi */
+  text: string
+}
+
+export type Element = TextElement | ImageElement | ShapeElement | DrawingElement | AnnotationElement | CommentElement | EraseElement
 export type ElementType = Element['type']
 
 export type ErroreApertura = 'non_pdf' | 'troppo_grande' | 'serve_password' | 'password_errata' | 'danneggiato'

@@ -131,8 +131,9 @@ export function Properties() {
             />
           </PropertyGroup>
         )}
-        {/* il commento è un'icona sempre piena: l'opacità non avrebbe effetto */}
-        {el.type !== 'comment' && <OpacityControl value={el.opacity} onChange={(o) => edit({ opacity: o }, {})} />}
+        {el.type === 'erase' && <Hint>Il testo originale di questa riga viene tolto dal PDF. Elimina questo elemento per riaverlo.</Hint>}
+        {/* commento e testo tolto non hanno un'opacità che abbia senso cambiare */}
+        {el.type !== 'comment' && el.type !== 'erase' && <OpacityControl value={el.opacity} onChange={(o) => edit({ opacity: o }, {})} />}
         <PropertyGroup>
           <IconButton size="sm" label="Elimina elemento" shortcut="Canc" icon={<Trash2 />} onClick={() => removeElement(el.id)} />
         </PropertyGroup>
@@ -206,6 +207,13 @@ export function Properties() {
           <ColorPicker label="Colore dell'icona" value={style.commentColor} swatches={HIGHLIGHT_SWATCHES} onChange={(c) => c && setStyle({ commentColor: c })} />
         </PropertyGroup>
         <Hint>Clicca sulla pagina dove vuoi lasciare il commento, poi scrivilo qui.</Hint>
+      </PropertyBar>
+    )
+  }
+  if (tool === 'edittext') {
+    return (
+      <PropertyBar>
+        <Hint>Clicca su una riga del PDF: si apre in modifica al suo posto, e al salvataggio il testo vecchio viene tolto dal file.</Hint>
       </PropertyBar>
     )
   }
