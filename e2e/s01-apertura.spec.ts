@@ -48,4 +48,15 @@ test.describe('S01 apertura e errori', () => {
     await expect(pageFigure(page, 1)).toBeVisible()
     await expect(page.getByRole('heading', { name: 'trascinato.pdf' })).toBeVisible()
   })
+
+  test('S01-E4 i pulsanti mostrano la manina, quelli disattivati no', async ({ page }) => {
+    await page.goto('/')
+    const cursor = (name: string) => page.getByRole('button', { name, exact: true }).evaluate((el) => getComputedStyle(el).cursor)
+    expect(await cursor('Scegli un PDF')).toBe('pointer')
+    await chooseFile(page, 'Scegli un PDF', sample('documento.pdf'))
+    await expect(pageFigure(page, 1)).toBeVisible()
+    expect(await cursor('Salva il PDF')).toBe('pointer')
+    expect(await page.getByRole('radio', { name: 'Testo', exact: true }).evaluate((el) => getComputedStyle(el).cursor)).toBe('pointer')
+    expect(await cursor('Annulla')).toBe('not-allowed') // disattivato: nessuna modifica da annullare
+  })
 })

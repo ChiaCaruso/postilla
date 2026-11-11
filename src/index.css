@@ -9,6 +9,15 @@
     background: var(--color-bg);
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Tailwind 4 non dà più la "manina" ai pulsanti: la rimettiamo su tutto ciò che è cliccabile e attivo.
+     I pulsanti disattivati hanno già cursor-not-allowed nei componenti. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  select:not(:disabled),
+  label:has(> input[type='checkbox'], > input[type='radio']) {
+    cursor: pointer;
+  }
 }
 
 @keyframes progress {
