@@ -115,6 +115,8 @@ export interface TextItem {
   size: number
   /** direzione del testo come si vede, in gradi (0 = dritto) */
   angle: number
+  /** larghezza del pezzo di testo */
+  width: number
 }
 
 export async function pdfTexts(file: string): Promise<TextItem[]> {
@@ -130,7 +132,7 @@ export async function pdfTexts(file: string): Promise<TextItem[]> {
       const [a, b, , , e, f] = it.transform as number[]
       const [x, y] = vp.convertToViewportPoint(e, f)
       const [x2, y2] = vp.convertToViewportPoint(e + a, f + b)
-      out.push({ page: i, text: it.str, x, y, size: Math.hypot(a, b), angle: Math.round((Math.atan2(y2 - y, x2 - x) * 180) / Math.PI) })
+      out.push({ page: i, text: it.str, x, y, size: Math.hypot(a, b), angle: Math.round((Math.atan2(y2 - y, x2 - x) * 180) / Math.PI), width: it.width })
     }
   }
   return out
@@ -235,4 +237,17 @@ export async function pageShot(page: Page, n: number) {
   await fig.scrollIntoViewIfNeeded()
   await page.waitForTimeout(500)
   return fig.locator('> div').screenshot()
+}
+
+/** Per ogni pagina: la matrice da coordinate "come si vede" a coordinate PDF (come nell'app). */
+export async function pdfToPdfMatrices(file: string): Promise<Array<[number, number, number, number, number, number]>> {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const pdf = await getDocument({ data: new Uint8Array(readFileSync(file)), verbosity: 0 }).promise
+  const out: Array<[number, number, number, number, number, number]> = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const [a, b, c, d, e, f] = (await pdf.getPage(i)).getViewport({ scale: 1 }).transform as number[]
+    const det = a * d - b * c
+    out.push([d / det, -b / det, -c / det, a / det, (c * f - d * e) / det, (b * e - a * f) / det])
+  }
+  return out
 }

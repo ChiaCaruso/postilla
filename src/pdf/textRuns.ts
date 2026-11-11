@@ -11,6 +11,11 @@ export interface TextRun {
   h: number
   /** bordo sinistro di ogni carattere e, in fondo, il bordo destro dell'ultimo (lunghezza = str.length + 1) */
   edges: number[]
+  /** linea di base e corpo del testo, nome del font in pdf.js e famiglia (sans-serif, serif, monospace) */
+  baseline: number
+  size: number
+  fontName: string
+  family: string
 }
 
 let measureCtx: CanvasRenderingContext2D | null = null
@@ -85,6 +90,10 @@ async function load(pdfjs: PDFDocumentProxy, pageIndex: number): Promise<PageTex
       w: it.width,
       h: size * 1.04,
       edges: charEdges(it.str, x0, it.width, styles[it.fontName]?.fontFamily ?? 'sans-serif'),
+      baseline: y0,
+      size,
+      fontName: it.fontName,
+      family: styles[it.fontName]?.fontFamily ?? 'sans-serif',
     })
   }
   return { runs, rotated }

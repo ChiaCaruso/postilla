@@ -47,6 +47,16 @@ Costruiti, con test: avanzamento all'apertura dei PDF lunghi, sottolineatura ond
 
 Più difficile del previsto: dare il focus al campo del commento. Il clic sulla pagina lo toglieva subito dopo averlo dato, e inserendo da tastiera il gruppo di strumenti deselezionava l'elemento appena creato. Il primo tentativo di correzione (rimandare l'inserimento) faceva perdere le prima lettere scritte subito dopo Invio: l'ha scoperto il test F01-E5. Ora, da tastiera, il gruppo di strumenti non cambia strumento e l'inserimento resta immediato. Lo stesso problema riguardava già il Testo inserito da tastiera, che lasciava attivo lo strumento Testo.
 
+## Modifica del testo esistente (2026-11-11, ramo `feature/testo-esistente`)
+
+Costruito il motore che legge i comandi di disegno della pagina (`src/pdf/contentStream.ts`) e calcola la posizione di ogni carattere, con le misure dei font del PDF (`src/pdf/textEdit.ts`): font incorporati a un byte e a due byte (Identity-H), 14 font standard. Per togliere un pezzo di testo, i caratteri vengono sostituiti da uno spazio della stessa larghezza dentro il comando di scrittura: il resto della riga e della pagina non si sposta.
+
+Strumento «Modifica testo» (M): clic su una riga → la riga viene tolta (nell'editor un riquadro del colore dello sfondo) e al suo posto c'è un testo modificabile con font, corpo, colore, grassetto e corsivo letti dal PDF. Un solo passo di Annulla. Test: 12 nuovi (6 del motore, 6 dello strumento); suite completa 87/87.
+
+Più difficile del previsto: riconoscere grassetto e corsivo. pdf.js non espone in modo affidabile il nome del font; si legge dal PDF (nome, peso, inclinazione, flag del font).
+
+Limiti: una riga alla volta; il testo che segue non si riallinea; font sostitutivo (il più simile tra quelli inclusi); testo dentro gruppi grafici, font Type3 e codifiche non Identity non modificabili (l'editor lo dice).
+
 ## Non ancora fatto (in ordine)
 
 1. Prototipo della modifica del testo esistente (il rischio maggiore, vedi architettura.md)

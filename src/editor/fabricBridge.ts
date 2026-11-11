@@ -1,7 +1,7 @@
 // Ponte tra il modello (store) e gli oggetti Fabric che l'utente sposta sulla pagina.
 // Fabric lavora in punti PDF: lo zoom è solo lo zoom del canvas Fabric.
 import { Ellipse, FabricImage, FabricObject, Path, Rect, Textbox } from 'fabric'
-import { COMMENT_ICON, type AnnotationElement, type CommentElement, type DrawingElement, type Element, type ImageElement, type ShapeElement, type TextElement } from '../model'
+import { COMMENT_ICON, type AnnotationElement, type CommentElement, type DrawingElement, type Element, type EraseElement, type ImageElement, type ShapeElement, type TextElement } from '../model'
 import { annotationShapes } from '../pdf/textRuns'
 import { cssFamily } from '../pdf/fonts'
 import { TEXT_METRICS } from '../pdf/metrics'
@@ -91,6 +91,27 @@ function annotationGeometry(el: AnnotationElement) {
 
 const COMMENT_PATH = COMMENT_ICON.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ') + ' Z'
 
+/** Testo originale tolto: nell'editor un riquadro del colore dello sfondo, fermo e non cliccabile sulla pagina. */
+const eraseProps = (el: EraseElement) => ({
+  left: el.x,
+  top: el.y,
+  originX: 'left' as const,
+  originY: 'top' as const,
+  width: el.w,
+  height: el.h,
+  angle: 0,
+  opacity: 1,
+  fill: el.color,
+  stroke: null,
+  strokeWidth: 0,
+  scaleX: 1,
+  scaleY: 1,
+  evented: false,
+  hasControls: false,
+  lockMovementX: true,
+  lockMovementY: true,
+})
+
 function commentProps(el: CommentElement) {
   return {
     left: el.x,
@@ -161,6 +182,9 @@ export async function createObject(el: Element): Promise<FabricObject> {
       o = new Path(COMMENT_PATH, commentProps(el))
       o.set({ left: el.x, top: el.y })
       break
+    case 'erase':
+      o = new Rect(eraseProps(el))
+      break
     case 'annotation': {
       const props = annotationProps(el)
       o = new Path(annotationGeometry(el).d, props)
@@ -204,6 +228,9 @@ export function applyToObject(el: Element, o: FabricObject) {
     case 'comment':
       o.set(commentProps(el))
       break
+    case 'erase':
+      o.set(eraseProps(el))
+      break
   }
   o.setCoords()
 }
@@ -232,6 +259,8 @@ export function readFromObject(o: FabricObject, el: Element): Partial<Element> {
       return {}
     case 'comment':
       return { x: round(o.left), y: round(o.top) }
+    case 'erase':
+      return {}
     case 'shape': {
       if (el.shape === 'ellipse') {
         const e = o as Ellipse

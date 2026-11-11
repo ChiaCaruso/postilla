@@ -5,6 +5,7 @@ import { useStore } from '../store'
 import type { Element, Pagina } from '../model'
 import { applyToObject, createObject, drawingFromPath, idOf, needsRecreate, readFromObject } from './fabricBridge'
 import { newComment, newShape, newText } from './factory'
+import { startTextEdit } from './editExisting'
 import { cssFamily, isFontLoaded, loadFontFace } from '../pdf/fonts'
 import { boundRects, getTextRuns, overlaps, selectRuns } from '../pdf/textRuns'
 import tokens from '../../docs/design/tokens.json'
@@ -32,6 +33,10 @@ export function PageView({ page, scale }: Props) {
   const [objVersion, setObjVersion] = useState(0)
   /** Ultimo disegno completo della pagina: fa anche da sfondo al canvas di Fabric. */
   const [pageBitmap, setPageBitmap] = useState<HTMLCanvasElement | null>(null)
+  const bitmapRef = useRef<HTMLCanvasElement | null>(null)
+  useEffect(() => {
+    bitmapRef.current = pageBitmap
+  }, [pageBitmap])
 
   const pdfjs = useStore((s) => s.pdfjs)
   const elements = useStore((s) => s.elements)
@@ -100,6 +105,25 @@ export function PageView({ page, scale }: Props) {
     canvas.on('mouse:down', (opt) => {
       const s = useStore.getState()
       const tool = s.tool
+      if (tool === 'edittext') {
+        const p = { x: opt.scenePoint.x, y: opt.scenePoint.y }
+        const { doc, pdfjs: pj } = s
+        if (!doc || !pj) return
+        void startTextEdit(doc, pj, page.indice, p, bitmapRef.current).then((r) => {
+          const st = useStore.getState()
+          if (!r.ok) {
+            st.setNotice({ title: 'Non è stato possibile modificare il testo', text: r.reason })
+            return
+          }
+          // Riquadro del testo tolto e testo nuovo: un solo passo di Annulla, testo subito in modifica.
+          const [, textId] = st.addElements([r.erase, r.text])
+          st.setNotice(null)
+          st.setTool('select')
+          st.select(textId)
+          st.requestEdit(textId)
+        })
+        return
+      }
       if (tool === 'annotate') {
         dragStart = { x: opt.scenePoint.x, y: opt.scenePoint.y }
         dragRect = new Rect({
@@ -143,7 +167,7 @@ export function PageView({ page, scale }: Props) {
         const st = useStore.getState()
         if (!sel.rects.length) {
           if (rotated.some((r) => overlaps(drag, r))) {
-            st.setNotice('Qui il testo è ruotato: per ora si può evidenziare solo il testo orizzontale. Puoi usare l\'evidenziatore a mano libera.')
+            st.setNotice({ title: 'Non è stato possibile annotare', text: 'Qui il testo è ruotato: per ora si può evidenziare solo il testo orizzontale. Puoi usare l\'evidenziatore a mano libera.' })
           }
           return
         }
@@ -256,8 +280,8 @@ export function PageView({ page, scale }: Props) {
       c.freeDrawingBrush = brush
     }
     // Annotando, i clic passano "attraverso" gli elementi già presenti.
-    c.skipTargetFind = tool === 'annotate'
-    c.defaultCursor = tool === 'text' || tool === 'annotate' ? 'text' : tool === 'shape' || tool === 'comment' ? 'crosshair' : 'default'
+    c.skipTargetFind = tool === 'annotate' || tool === 'edittext'
+    c.defaultCursor = tool === 'text' || tool === 'annotate' || tool === 'edittext' ? 'text' : tool === 'shape' || tool === 'comment' ? 'crosshair' : 'default'
     c.forEachObject((o) => {
       const id = idOf(o)
       const isAnnotation = useStore.getState().elements.find((e) => e.id === id)?.type === 'annotation'
