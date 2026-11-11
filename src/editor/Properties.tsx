@@ -9,7 +9,7 @@ import { ColorPicker, HIGHLIGHT_SWATCHES } from '../ui/ColorPicker'
 import { Slider } from '../ui/Slider'
 import { IconButton, iconButtonClass } from '../ui/IconButton'
 import { Tooltip } from '../ui/Tooltip'
-import { FONT_FAMILIES, loadFontFace } from '../pdf/fonts'
+import { FONT_FAMILIES, hasItalic, loadFontFace } from '../pdf/fonts'
 import { selectedElement, useStore, type AnnotationStyle, type ShapeKind, type Style } from '../store'
 import type { Element, FontFamily } from '../model'
 
@@ -31,7 +31,7 @@ function TextControls({ v, onChange }: { v: Pick<Style, 'font' | 'size' | 'color
       </PropertyGroup>
       <PropertyGroup>
         <IconButton size="sm" label="Grassetto" icon={<Bold />} pressed={v.bold} onClick={() => void withFont({ bold: !v.bold })} />
-        <IconButton size="sm" label="Corsivo" icon={<Italic />} pressed={v.italic} disabled={v.font === 'NotoSansMono'} onClick={() => void withFont({ italic: !v.italic })} />
+        <IconButton size="sm" label="Corsivo" icon={<Italic />} pressed={v.italic} disabled={!hasItalic(v.font)} onClick={() => void withFont({ italic: !v.italic })} />
         <IconButton size="sm" label="Sottolineato" icon={<Underline />} pressed={v.underline} onClick={() => onChange({ underline: !v.underline })} />
       </PropertyGroup>
       <PropertyGroup>

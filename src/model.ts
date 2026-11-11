@@ -27,7 +27,10 @@ export interface Documento {
   haTesto: boolean
 }
 
-export type FontFamily = 'NotoSans' | 'NotoSerif' | 'NotoSansMono'
+export type FontFamily =
+  | 'NotoSans' | 'NotoSerif' | 'NotoSansMono'
+  // stesse larghezze dei font d'ufficio (vedi pdf/fonts.ts)
+  | 'Arimo' | 'Tinos' | 'Cousine' | 'Carlito' | 'Caladea' | 'Gelasio'
 
 interface Base {
   id: Id

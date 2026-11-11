@@ -6,7 +6,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { TextField } from '../ui/TextField'
 import { OpenError, openPdf } from '../pdf/open'
-import { FONT_FAMILIES, loadFontFace } from '../pdf/fonts'
+import { FONTS, loadFontFace } from '../pdf/fonts'
 import { useStore } from '../store'
 import type { ErroreApertura } from '../model'
 
@@ -42,7 +42,7 @@ export function UploadScreen() {
     try {
       const opened = await openPdf(file, pw, onProgress)
       // I font del testo devono essere pronti prima che l'editor misuri le righe.
-      await Promise.all(FONT_FAMILIES.map((f) => loadFontFace(f.value)))
+      await Promise.all(FONTS.filter((f) => f.base).map((f) => loadFontFace(f.value)))
       setLocked(null)
       openDocument(opened.doc, opened.pdfjs)
     } catch (e) {

@@ -3,7 +3,7 @@
 import { Ellipse, FabricImage, FabricObject, Path, Rect, Textbox } from 'fabric'
 import { COMMENT_ICON, type AnnotationElement, type CommentElement, type DrawingElement, type Element, type EraseElement, type ImageElement, type ShapeElement, type TextElement } from '../model'
 import { annotationShapes } from '../pdf/textRuns'
-import { cssFamily } from '../pdf/fonts'
+import { cssFamily, hasItalic } from '../pdf/fonts'
 import { TEXT_METRICS } from '../pdf/metrics'
 import tokens from '../../docs/design/tokens.json'
 
@@ -37,7 +37,7 @@ function textProps(el: TextElement) {
     fontSize: el.size,
     fontWeight: el.bold ? '700' : '400',
     // Il mono non ha il corsivo: niente corsivo finto nell'editor, l'export non lo avrebbe.
-    fontStyle: el.italic && el.font !== 'NotoSansMono' ? ('italic' as const) : ('normal' as const),
+    fontStyle: el.italic && hasItalic(el.font) ? ('italic' as const) : ('normal' as const),
     fill: el.color,
     underline: el.underline,
     textAlign: el.align,

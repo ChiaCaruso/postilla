@@ -18,7 +18,7 @@ test.describe('F04 modificare il testo esistente', () => {
     await expect(page.getByRole('button', { name: /Testo originale tolto: Verbale/ })).toBeVisible()
     const [erase, text] = await elements(page)
     expect(erase.type).toBe('erase')
-    expect(text).toMatchObject({ type: 'text', text: 'Verbale della riunione del 4 novembre 2026.', font: 'NotoSans', size: 12 })
+    expect(text).toMatchObject({ type: 'text', text: 'Verbale della riunione del 4 novembre 2026.', font: 'Arimo', size: 12 }) // Helvetica → Arimo
 
     await page.keyboard.type('Verbale approvato il 10 novembre 2026.') // il testo è già selezionato: si sostituisce
     await page.keyboard.press('Escape')
@@ -35,7 +35,7 @@ test.describe('F04 modificare il testo esistente', () => {
       expect(same, o.text).toBeTruthy()
       expect(Math.abs(same.x - o.x) + Math.abs(same.y - o.y), o.text).toBeLessThan(0.01)
     }
-    expect((await pdfInfo(file)).fonts.some((f) => /NotoSans-Regular/.test(f))).toBe(true)
+    expect((await pdfInfo(file)).fonts.some((f) => /Arimo/.test(f))).toBe(true)
   })
 
   test('F04-H2 importo in grassetto rosso su sfondo giallo (PDF stampato da Chrome)', async ({ page }, info) => {
@@ -44,7 +44,7 @@ test.describe('F04 modificare il testo esistente', () => {
     await clickOnText(page, t.x + 10, t.y - t.size * 0.3)
     await expect.poll(async () => (await elements(page)).length).toBe(2)
     const [erase, text] = await elements(page)
-    expect(text).toMatchObject({ type: 'text', font: 'NotoSerif', bold: true })
+    expect(text).toMatchObject({ type: 'text', font: 'Gelasio', bold: true }) // Georgia → Gelasio
     const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
     const [r, g] = rgb(text.color as string)
     expect(r, 'testo rosso').toBeGreaterThan(140)
@@ -101,4 +101,26 @@ test.describe('F04 modificare il testo esistente', () => {
     await openPdf(page, 'scansione.pdf')
     await expect(page.getByRole('radio', { name: TOOL, exact: true })).toBeDisabled()
   })
+
+  for (const [file, line, font] of [
+    ['documento.pdf', 'Si approva il preventivo per la manutenzione degli impianti,', 'Arimo'],
+    ['stampato-da-chrome.pdf', 'Gentile cliente, le confermiamo la fornitura descritta qui sotto.', 'Gelasio'],
+  ] as const) {
+    test(`F04-H4 ${file}: riscritta con il font compatibile (${font}), la riga occupa la stessa larghezza`, async ({ page }, info) => {
+      await openPdf(page, file)
+      const t = (await pdfTexts(`samples/${file}`)).find((x) => x.page === 1 && x.text === line)!
+      await page.getByRole('radio', { name: TOOL, exact: true }).click()
+      const p = await pagePoint(page, 1, t.x + 20, t.y - t.size * 0.3, A4)
+      await page.mouse.click(p.x, p.y)
+      await expect.poll(async () => (await elements(page)).length).toBe(2)
+      expect((await elements(page))[1].font).toBe(font)
+      await page.keyboard.type(line) // stesso testo, riscritto
+      await page.keyboard.press('Escape')
+      const out = await saveAndDownload(page, info)
+      const nuovo = (await pdfTexts(out)).find((x) => x.page === 1 && x.text === line)!
+      expect(nuovo, 'riga riscritta presente').toBeTruthy()
+      const scarto = Math.abs(nuovo.width - t.width) / t.width
+      expect(scarto, `larghezza ${nuovo.width.toFixed(2)} contro ${t.width.toFixed(2)} pt`).toBeLessThan(0.01)
+    })
+  }
 })
