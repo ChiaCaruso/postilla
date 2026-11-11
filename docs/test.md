@@ -3,7 +3,7 @@
 Build: `ee1f68f` (ramo `build/editor`; piano scritto su `da7705f`)  Data: 2026-11-09  Ambiente: locale (`npm run dev`), PDF di prova in `samples/`
 
 Legenda colonna "auto": **e2e** = test Playwright in `e2e/`, **manuale** = provato a mano, **n/a** = non si applica.
-Esecuzione: `npm test` (Playwright avvia da solo il server di sviluppo). Esito finale: **90 test, 90 passati** (39 della prima tornata, 10 della seconda, 19 dei casi limite, 7 della terza tornata).
+Esecuzione: `npm test` (Playwright avvia da solo il server di sviluppo). Esito finale: **90 test, 90 passati** (39 della prima tornata, 10 della seconda, 19 dei casi limite, 7 della terza tornata, 15 per la modifica del testo esistente e i font compatibili).
 
 Casi della lista standard che **non si applicano** a questa app, e perché:
 - utente di un altro account, sessione scaduta: non ci sono account né server;
